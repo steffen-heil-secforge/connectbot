@@ -31,6 +31,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.Parcelable;
 import android.preference.PreferenceManager;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -76,6 +77,7 @@ public class HostListActivity extends AppCompatListActivity implements OnHostSta
 	public static final String DISCONNECT_ACTION = "org.connectbot.action.DISCONNECT";
 
 	public final static int REQUEST_EDIT = 1;
+	public final static int REQUEST_IMPORT_PUTTY = 2;
 
 	protected TerminalManager bound = null;
 
@@ -174,6 +176,10 @@ public class HostListActivity extends AppCompatListActivity implements OnHostSta
 		super.onActivityResult(requestCode, resultCode, data);
 		if (requestCode == REQUEST_EDIT) {
 			this.updateList();
+		} else if (requestCode == REQUEST_IMPORT_PUTTY && resultCode == RESULT_OK) {
+			if (data != null && data.getData() != null) {
+				handlePuttyImportFile(data.getData());
+			}
 		}
 	}
 
@@ -356,6 +362,26 @@ public class HostListActivity extends AppCompatListActivity implements OnHostSta
 			}
 		});
 
+		MenuItem importPutty = menu.add(R.string.list_menu_import_putty);
+		importPutty.setIcon(android.R.drawable.ic_menu_upload);
+		importPutty.setOnMenuItemClickListener(new OnMenuItemClickListener() {
+			@Override
+			public boolean onMenuItemClick(MenuItem item) {
+				launchPuttyImport();
+				return true;
+			}
+		});
+
+		MenuItem deleteAll = menu.add(R.string.list_menu_delete_all_hosts);
+		deleteAll.setIcon(android.R.drawable.ic_menu_delete);
+		deleteAll.setOnMenuItemClickListener(new OnMenuItemClickListener() {
+			@Override
+			public boolean onMenuItemClick(MenuItem item) {
+				confirmDeleteAllHosts();
+				return true;
+			}
+		});
+
 		MenuItem settings = menu.add(R.string.list_menu_settings);
 		settings.setIcon(android.R.drawable.ic_menu_preferences);
 		settings.setIntent(new Intent(HostListActivity.this, SettingsActivity.class));
@@ -445,8 +471,20 @@ public class HostListActivity extends AppCompatListActivity implements OnHostSta
 			}
 		}
 
+		// Preserve scroll position when updating
+		Parcelable recyclerViewState = null;
+		if (mListView.getLayoutManager() != null) {
+			recyclerViewState = mListView.getLayoutManager().onSaveInstanceState();
+		}
+
 		mAdapter = new HostAdapter(this, hosts, bound);
 		mListView.setAdapter(mAdapter);
+		
+		// Restore scroll position
+		if (recyclerViewState != null && mListView.getLayoutManager() != null) {
+			mListView.getLayoutManager().onRestoreInstanceState(recyclerViewState);
+		}
+		
 		adjustViewVisibility();
 	}
 
@@ -813,5 +851,191 @@ public class HostListActivity extends AppCompatListActivity implements OnHostSta
 		public int getItemCount() {
 			return hosts.size();
 		}
+	}
+	
+	/**
+	 * Launch file picker for PuTTY import.
+	 */
+	private void launchPuttyImport() {
+		Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+		intent.setType("text/plain");
+		intent.putExtra("android.intent.extra.MIME_TYPES", 
+			new String[]{"text/plain", "application/octet-stream"});
+		intent.addCategory(Intent.CATEGORY_OPENABLE);
+		startActivityForResult(intent, REQUEST_IMPORT_PUTTY);
+	}
+	
+	private void confirmDeleteAllHosts() {
+		List<HostBean> hosts = hostdb.getHosts(false);
+		if (hosts.isEmpty()) {
+			return; // No hosts to delete
+		}
+		
+		new androidx.appcompat.app.AlertDialog.Builder(this, R.style.AlertDialogTheme)
+			.setTitle(R.string.delete_all_hosts_title)
+			.setMessage(getString(R.string.delete_all_hosts_message, hosts.size()))
+			.setPositiveButton(R.string.delete_all_hosts_confirm, new DialogInterface.OnClickListener() {
+				@Override
+				public void onClick(DialogInterface dialog, int which) {
+					deleteAllHosts();
+				}
+			})
+			.setNegativeButton(android.R.string.cancel, null)
+			.create()
+			.show();
+	}
+	
+	private void deleteAllHosts() {
+		// Disconnect all active connections first
+		if (bound != null) {
+			bound.disconnectAll(true, false);
+		}
+		
+		// Delete all hosts from database
+		List<HostBean> hosts = hostdb.getHosts(false);
+		for (HostBean host : hosts) {
+			hostdb.deleteHost(host);
+		}
+		
+		// Update the list
+		updateList();
+	}
+	
+	private int getImportableSessionsCount(org.connectbot.util.PuttyRegistryParser.ParseResult result) {
+		int importableCount = 0;
+		HostDatabase hostDatabase = HostDatabase.get(this);
+		List<HostBean> existingHosts = hostDatabase.getHosts(false);
+		
+		for (org.connectbot.util.PuttySession session : result.getValidSessions()) {
+			HostBean existingHost = findExistingHost(existingHosts, session.getSessionName());
+			if (existingHost == null || hasSignificantDifferences(existingHost, session)) {
+				importableCount++;
+			}
+		}
+		
+		return importableCount;
+	}
+	
+	private HostBean findExistingHost(List<HostBean> hosts, String nickname) {
+		for (HostBean host : hosts) {
+			if (host.getNickname().equals(nickname)) {
+				return host;
+			}
+		}
+		return null;
+	}
+	
+	private boolean hasSignificantDifferences(HostBean existingHost, org.connectbot.util.PuttySession session) {
+		// Compare hostname
+		if (!existingHost.getHostname().equals(session.getHostname())) {
+			return true;
+		}
+		
+		// Compare port
+		if (existingHost.getPort() != session.getPort()) {
+			return true;
+		}
+		
+		// Compare username
+		String existingUsername = existingHost.getUsername();
+		String sessionUsername = session.getUsername();
+		if (!java.util.Objects.equals(existingUsername, sessionUsername)) {
+			return true;
+		}
+		
+		// Compare protocol
+		if (!existingHost.getProtocol().equals(session.getProtocol())) {
+			return true;
+		}
+		
+		// Compare compression
+		if (existingHost.getCompression() != session.isCompression()) {
+			return true;
+		}
+		
+		// For simplicity, skip detailed port forward comparison here
+		// The PuttyImportDialog will do the full comparison
+		return false;
+	}
+	
+	/**
+	 * Handle selected PuTTY registry file.
+	 */
+	private void handlePuttyImportFile(Uri fileUri) {
+		try {
+			// Get file size
+			long fileSize = 0;
+			try {
+				android.database.Cursor cursor = getContentResolver().query(
+					fileUri, null, null, null, null);
+				if (cursor != null) {
+					int sizeIndex = cursor.getColumnIndex(android.provider.OpenableColumns.SIZE);
+					if (sizeIndex != -1 && cursor.moveToFirst()) {
+						fileSize = cursor.getLong(sizeIndex);
+					}
+					cursor.close();
+				}
+			} catch (Exception e) {
+				// Ignore, we'll check during parsing
+			}
+			
+			// Parse the file
+			java.io.InputStream inputStream = getContentResolver().openInputStream(fileUri);
+			if (inputStream == null) {
+				showImportError(getString(R.string.putty_import_error_invalid_file));
+				return;
+			}
+			
+			org.connectbot.util.PuttyRegistryParser parser = new org.connectbot.util.PuttyRegistryParser();
+			org.connectbot.util.PuttyRegistryParser.ParseResult result = parser.parseRegistryFile(inputStream, fileSize);
+			inputStream.close();
+			
+			// Check for errors
+			if (!result.getErrors().isEmpty()) {
+				String error = result.getErrors().get(0);
+				if (error.contains("too large")) {
+					showImportError(getString(R.string.putty_import_error_file_too_large));
+				} else if (error.contains("encoding")) {
+					showImportError(getString(R.string.putty_import_error_encoding));
+				} else if (error.contains("no sessions") || error.contains("No PuTTY")) {
+					showImportError(getString(R.string.putty_import_error_no_sessions));
+				} else {
+					showImportError(getString(R.string.putty_import_error_invalid_file));
+				}
+				return;
+			}
+			
+			// Check if there are any sessions that need import/update
+			if (result.getValidSessions().isEmpty()) {
+				showImportError(getString(R.string.putty_import_no_sessions_to_import));
+				return;
+			}
+			
+			// Perform filtering check to see if any sessions actually need import
+			int importableCount = getImportableSessionsCount(result);
+			if (importableCount == 0) {
+				showImportError(getString(R.string.putty_import_all_sessions_exist));
+				return;
+			}
+			
+			// Show import dialog
+			PuttyImportDialog dialog = PuttyImportDialog.newInstance(result);
+			dialog.show(getSupportFragmentManager(), "putty_import");
+			
+		} catch (Exception e) {
+			Log.e(TAG, "Error handling PuTTY import file", e);
+			showImportError(getString(R.string.putty_import_error_generic));
+		}
+	}
+	
+	/**
+	 * Show import error dialog.
+	 */
+	private void showImportError(String message) {
+		new androidx.appcompat.app.AlertDialog.Builder(this, R.style.AlertDialogTheme)
+			.setTitle(R.string.putty_import_error_title)
+			.setMessage(message)
+			.setPositiveButton(android.R.string.ok, null)
+			.show();
 	}
 }
