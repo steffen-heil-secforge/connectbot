@@ -96,6 +96,7 @@ public class TerminalManager extends Service implements BridgeDisconnectedListen
 	final private IBinder binder = new TerminalBinder();
 
 	private ConnectivityReceiver connectivityManager;
+	private AccessPointReceiver accessPointReceiver;
 
 	private MediaPlayer mediaPlayer;
 
@@ -165,6 +166,7 @@ public class TerminalManager extends Service implements BridgeDisconnectedListen
 		final boolean lockingWifi = prefs.getBoolean(PreferenceConstants.WIFI_LOCK, true);
 
 		connectivityManager = new ConnectivityReceiver(this, lockingWifi);
+		accessPointReceiver = new AccessPointReceiver(this);
 
 		ProviderLoader.load(this, this);
 	}
@@ -194,6 +196,7 @@ public class TerminalManager extends Service implements BridgeDisconnectedListen
 		}
 
 		connectivityManager.cleanup();
+		accessPointReceiver.cleanup();
 
 		ConnectionNotifier.getInstance().hideRunningNotification(this);
 
@@ -804,9 +807,9 @@ public class TerminalManager extends Service implements BridgeDisconnectedListen
 		boolean shouldMonitor = !bridges.isEmpty() && hasActiveAccessPointForwards();
 		
 		if (shouldMonitor && !apMonitoringActive) {
-			// Start monitoring
-			Log.d(TAG, "Starting AP state monitoring");
-			apStateTimer.schedule(new ApStateMonitorTask(), 0, 10000);
+			// Start monitoring - hybrid approach: broadcast receiver for fast response + timer for reliability
+			Log.d(TAG, "Starting AP state monitoring (hybrid: broadcast + 30s polling)");
+			apStateTimer.schedule(new ApStateMonitorTask(), 0, 30000);  // 30s polling (was 10s)
 			apMonitoringActive = true;
 		} else if (!shouldMonitor && apMonitoringActive) {
 			// Stop monitoring
@@ -818,8 +821,10 @@ public class TerminalManager extends Service implements BridgeDisconnectedListen
 	}
 	
 	/**
-	 * Timer task to monitor access point state changes
-	 * Only runs when monitoring is active (connections exist with AP port forwards)
+	 * Timer task to monitor access point state changes every 30 seconds.
+	 * This provides a reliable fallback for AP state monitoring that works on all devices.
+	 * Combined with AccessPointReceiver for immediate response on devices that support broadcasts.
+	 * Only runs when monitoring is active (connections exist with AP port forwards).
 	 */
 	private class ApStateMonitorTask extends TimerTask {
 		@Override
