@@ -102,7 +102,6 @@ public class HostListActivity extends AppCompatListActivity implements OnHostSta
 	 * only brought to the foreground via the notification button to disconnect all hosts.
 	 */
 	private boolean closeOnDisconnectAll = true;
-	
 
 	private ServiceConnection connection = new ServiceConnection() {
 		@Override
@@ -242,7 +241,6 @@ public class HostListActivity extends AppCompatListActivity implements OnHostSta
 		mListView.addItemDecoration(new ListItemDecoration(this));
 
 		mEmptyView = findViewById(R.id.empty);
-		
 
 		this.prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
@@ -450,7 +448,6 @@ public class HostListActivity extends AppCompatListActivity implements OnHostSta
 		mAdapter = new HostAdapter(this, hosts, bound);
 		mListView.setAdapter(mAdapter);
 		adjustViewVisibility();
-		
 	}
 
 	@Override

@@ -639,9 +639,9 @@ public class SSH extends AbsTransport implements ConnectionMonitor, InteractiveC
 	 */
 	private InetAddress resolveBindAddress(String bindAddress) {
 		try {
-			if ("0.0.0.0".equals(bindAddress)) {
-				return InetAddress.getByName("0.0.0.0");
-			} else if ("access_point".equals(bindAddress)) {
+			if (NetworkUtils.BIND_ALL_INTERFACES.equals(bindAddress)) {
+				return InetAddress.getByName(NetworkUtils.BIND_ALL_INTERFACES);
+			} else if (NetworkUtils.BIND_ACCESS_POINT.equals(bindAddress)) {
 				String apIP = NetworkUtils.getAccessPointIP(manager);
 				if (apIP != null) {
 					Log.d(TAG, "Binding to access point IP: " + apIP);
@@ -655,7 +655,7 @@ public class SSH extends AbsTransport implements ConnectionMonitor, InteractiveC
 			}
 		} catch (Exception e) {
 			Log.e(TAG, "Error resolving bind address: " + bindAddress, e);
-			return "access_point".equals(bindAddress) ? null : InetAddress.getLoopbackAddress();
+			return NetworkUtils.BIND_ACCESS_POINT.equals(bindAddress) ? null : InetAddress.getLoopbackAddress();
 		}
 	}
 

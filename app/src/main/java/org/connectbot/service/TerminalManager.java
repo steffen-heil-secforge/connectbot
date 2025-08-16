@@ -777,13 +777,18 @@ public class TerminalManager extends Service implements BridgeDisconnectedListen
 			
 			updateRunningNotificationWithApInfo();
 			
-			// Notify host status listeners so UI can update (like AP info bar in host list)
+			// Notify host status listeners so UI can update (like port forwarding display in host list)
 			notifyHostStatusChanged();
 		}
 	}
 	
 	/**
 	 * Start monitoring access point state changes
+	 * 
+	 * Note: Android does not provide reliable broadcast intents for WiFi hotspot state changes.
+	 * The WIFI_AP_STATE_CHANGED intent is not documented in the public API and may not work
+	 * consistently across all devices and Android versions. Therefore, we use periodic polling
+	 * to detect AP state changes for reliable cross-device compatibility.
 	 */
 	private void startAccessPointMonitoring() {
 		// Check AP state every 10 seconds
