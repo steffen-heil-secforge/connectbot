@@ -18,460 +18,414 @@
 package org.connectbot.util;
 
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
 import org.junit.Test;
+import org.mockito.Mockito;
+
+import java.net.InetAddress;
+import java.net.InterfaceAddress;
+import java.net.NetworkInterface;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 /**
- * Tests for NetworkUtils functionality, focusing on pure logic that doesn't
- * require Android system services.
+ * Tests for NetworkUtils functionality, focusing on methods that can be tested
+ * without Android Context dependencies.
  */
 public class NetworkUtilsTest {
-	
+
 	@Test
 	public void testBindAddressConstants() {
 		assertEquals("localhost", NetworkUtils.BIND_LOCALHOST);
 		assertEquals("0.0.0.0", NetworkUtils.BIND_ALL_INTERFACES);
 		assertEquals("access_point", NetworkUtils.BIND_ACCESS_POINT);
 	}
-	
-	// Note: Tests that require Android Context are not included in unit tests
-	// since they require system services that aren't available in pure unit tests.
-	// These would be better tested as integration tests.
-	
-	/**
-	 * Test interface name detection patterns for WiFi AP interfaces
-	 */
+
 	@Test
-	public void testApInterfacePatterns() {
-		// These are the patterns NetworkUtils should recognize as AP interfaces
-		String[] apInterfaces = {
-			"ap0", "ap1", "ap2",
-			"wlan1", // Note: wlan2 won't match "wlan1" pattern in NetworkUtils
-			"p2p0", "p2p-wlan0-0",
-			"hotspot0",
-			"softap0",
-			"wifi_ap0"
-		};
-		
-		// Note: We can't easily test the private isLikelyApInterface method directly,
-		// but we can test that these patterns would be recognized by the implementation
-		for (String ifName : apInterfaces) {
-			// This is a behavioral test - these interface names should be considered
-			// valid AP interface candidates based on the patterns in NetworkUtils
-			boolean matches = ifName.contains("ap") || 
-				ifName.contains("wlan1") ||
-				ifName.contains("p2p") || 
-				ifName.contains("hotspot") || 
-				ifName.contains("softap") || 
-				ifName.contains("wifi_ap");
-			assertTrue("Interface " + ifName + " should match AP patterns", matches);
+	public void testGetBindAddressDisplayName() {
+		// Test with null AP IP (unavailable)
+		assertEquals("all interfaces",
+			NetworkUtils.getBindAddressDisplayName("0.0.0.0", (String)null));
+		assertEquals("localhost",
+			NetworkUtils.getBindAddressDisplayName("localhost", (String)null));
+		assertEquals("localhost",
+			NetworkUtils.getBindAddressDisplayName("anything_else", (String)null));
+		assertEquals("WiFi hotspot (unavailable)",
+			NetworkUtils.getBindAddressDisplayName("access_point", (String)null));
+
+		// Test with valid AP IP
+		assertEquals("WiFi hotspot (192.168.1.1)",
+			NetworkUtils.getBindAddressDisplayName("access_point", "192.168.1.1"));
+	}
+
+	@Test
+	public void testGetSimpleBindAddressDisplay() {
+		// Test with null AP IP (unavailable)
+		assertEquals("0.0.0.0",
+			NetworkUtils.getSimpleBindAddressDisplay("0.0.0.0", (String)null));
+		assertEquals("localhost",
+			NetworkUtils.getSimpleBindAddressDisplay("localhost", (String)null));
+		assertEquals("localhost",
+			NetworkUtils.getSimpleBindAddressDisplay("anything_else", (String)null));
+		assertEquals("AP",
+			NetworkUtils.getSimpleBindAddressDisplay("access_point", (String)null));
+
+		// Test with valid AP IP
+		assertEquals("192.168.1.1",
+			NetworkUtils.getSimpleBindAddressDisplay("access_point", "192.168.1.1"));
+	}
+
+	@Test
+	public void testResolveBindAddress() {
+		// Test with null AP IP (unavailable)
+		assertEquals("0.0.0.0",
+			NetworkUtils.resolveBindAddress("0.0.0.0", (String)null));
+		assertEquals("127.0.0.1",
+			NetworkUtils.resolveBindAddress("localhost", (String)null));
+		assertEquals("127.0.0.1",
+			NetworkUtils.resolveBindAddress("anything_else", (String)null));
+		// access_point with null AP IP should return null
+		assertNull(NetworkUtils.resolveBindAddress("access_point", (String)null));
+
+		// Test with valid AP IP
+		assertEquals("192.168.1.1",
+			NetworkUtils.resolveBindAddress("access_point", "192.168.1.1"));
+	}
+
+	@Test
+	public void testBindAddressConstantsEdgeCases() {
+		// Test edge cases with constants using pure logic methods
+		assertEquals("localhost", NetworkUtils.getBindAddressDisplayName(NetworkUtils.BIND_LOCALHOST, (String)null));
+		assertEquals("all interfaces", NetworkUtils.getBindAddressDisplayName(NetworkUtils.BIND_ALL_INTERFACES, (String)null));
+		assertEquals("WiFi hotspot (unavailable)", NetworkUtils.getBindAddressDisplayName(NetworkUtils.BIND_ACCESS_POINT, (String)null));
+
+		// Test that constants are non-null and non-empty
+		assertNotNull(NetworkUtils.BIND_LOCALHOST);
+		assertNotNull(NetworkUtils.BIND_ALL_INTERFACES);
+		assertNotNull(NetworkUtils.BIND_ACCESS_POINT);
+		assertFalse(NetworkUtils.BIND_LOCALHOST.isEmpty());
+		assertFalse(NetworkUtils.BIND_ALL_INTERFACES.isEmpty());
+		assertFalse(NetworkUtils.BIND_ACCESS_POINT.isEmpty());
+	}
+
+	@Test
+	public void testNullInputHandling() {
+		// Test methods handle null inputs gracefully using pure logic methods
+		assertEquals("localhost", NetworkUtils.getBindAddressDisplayName(null, (String)null));
+		assertEquals("localhost", NetworkUtils.getSimpleBindAddressDisplay(null, (String)null));
+		assertEquals("127.0.0.1", NetworkUtils.resolveBindAddress(null, (String)null));
+
+		// Test empty strings
+		assertEquals("localhost", NetworkUtils.getBindAddressDisplayName("", (String)null));
+		assertEquals("localhost", NetworkUtils.getSimpleBindAddressDisplay("", (String)null));
+		assertEquals("127.0.0.1", NetworkUtils.resolveBindAddress("", (String)null));
+	}
+
+	@Test
+	public void testGetHotspotInterfaceIP_NullInput() {
+		// Test null input
+		assertNull(NetworkUtils.getHotspotInterfaceIP(null));
+
+		// Test empty list
+		assertNull(NetworkUtils.getHotspotInterfaceIP(Collections.emptyList()));
+	}
+
+	@Test
+	public void testGetHotspotInterfaceIP_ValidApInterface() throws Exception {
+		// Create mock NetworkInterface for AP
+		NetworkInterface mockIntf = mock(NetworkInterface.class);
+		when(mockIntf.isUp()).thenReturn(true);
+		when(mockIntf.isLoopback()).thenReturn(false);
+		when(mockIntf.isVirtual()).thenReturn(false);
+		when(mockIntf.getName()).thenReturn("ap0");
+
+		// Create mock InetAddress and InterfaceAddress
+		InetAddress mockInetAddr = mock(InetAddress.class);
+		when(mockInetAddr.isLoopbackAddress()).thenReturn(false);
+		when(mockInetAddr.isLinkLocalAddress()).thenReturn(false);
+		when(mockInetAddr.isSiteLocalAddress()).thenReturn(true);
+		when(mockInetAddr.getHostAddress()).thenReturn("192.168.1.1");
+
+		InterfaceAddress mockIfaceAddr = mock(InterfaceAddress.class);
+		when(mockIfaceAddr.getAddress()).thenReturn(mockInetAddr);
+
+		when(mockIntf.getInterfaceAddresses()).thenReturn(Arrays.asList(mockIfaceAddr));
+
+		List<NetworkInterface> interfaces = Arrays.asList(mockIntf);
+		String result = NetworkUtils.getHotspotInterfaceIP(interfaces);
+
+		assertEquals("192.168.1.1", result);
+	}
+
+	@Test
+	public void testGetHotspotInterfaceIP_NoApInterface() throws Exception {
+		// Create mock NetworkInterface for non-AP interface
+		NetworkInterface mockIntf = mock(NetworkInterface.class);
+		when(mockIntf.isUp()).thenReturn(true);
+		when(mockIntf.isLoopback()).thenReturn(false);
+		when(mockIntf.isVirtual()).thenReturn(false);
+		when(mockIntf.getName()).thenReturn("wlan0"); // Not an AP interface
+
+		List<NetworkInterface> interfaces = Arrays.asList(mockIntf);
+		String result = NetworkUtils.getHotspotInterfaceIP(interfaces);
+
+		assertNull(result);
+	}
+
+	@Test
+	public void testGetHotspotInterfaceIP_InterfaceDown() throws Exception {
+		// Create mock NetworkInterface that's down
+		NetworkInterface mockIntf = mock(NetworkInterface.class);
+		when(mockIntf.isUp()).thenReturn(false); // Interface is down
+		when(mockIntf.getName()).thenReturn("ap0");
+
+		List<NetworkInterface> interfaces = Arrays.asList(mockIntf);
+		String result = NetworkUtils.getHotspotInterfaceIP(interfaces);
+
+		assertNull(result);
+	}
+
+	@Test
+	public void testGetHotspotInterfaceIP_IPv6Filtered() throws Exception {
+		// Create mock NetworkInterface for AP with IPv6 address
+		NetworkInterface mockIntf = mock(NetworkInterface.class);
+		when(mockIntf.isUp()).thenReturn(true);
+		when(mockIntf.isLoopback()).thenReturn(false);
+		when(mockIntf.isVirtual()).thenReturn(false);
+		when(mockIntf.getName()).thenReturn("ap0");
+
+		// Create mock InetAddress with IPv6 (contains colon)
+		InetAddress mockInetAddr = mock(InetAddress.class);
+		when(mockInetAddr.isLoopbackAddress()).thenReturn(false);
+		when(mockInetAddr.isLinkLocalAddress()).thenReturn(false);
+		when(mockInetAddr.isSiteLocalAddress()).thenReturn(true);
+		when(mockInetAddr.getHostAddress()).thenReturn("2001:db8::1"); // IPv6
+
+		InterfaceAddress mockIfaceAddr = mock(InterfaceAddress.class);
+		when(mockIfaceAddr.getAddress()).thenReturn(mockInetAddr);
+
+		when(mockIntf.getInterfaceAddresses()).thenReturn(Arrays.asList(mockIfaceAddr));
+
+		List<NetworkInterface> interfaces = Arrays.asList(mockIntf);
+		String result = NetworkUtils.getHotspotInterfaceIP(interfaces);
+
+		assertNull(result); // IPv6 should be filtered out
+	}
+
+	@Test
+	public void testGetHotspotInterfaceIP_PublicIPFiltered() throws Exception {
+		// Create mock NetworkInterface for AP with public IP
+		NetworkInterface mockIntf = mock(NetworkInterface.class);
+		when(mockIntf.isUp()).thenReturn(true);
+		when(mockIntf.isLoopback()).thenReturn(false);
+		when(mockIntf.isVirtual()).thenReturn(false);
+		when(mockIntf.getName()).thenReturn("ap0");
+
+		// Create mock InetAddress with public IP
+		InetAddress mockInetAddr = mock(InetAddress.class);
+		when(mockInetAddr.isLoopbackAddress()).thenReturn(false);
+		when(mockInetAddr.isLinkLocalAddress()).thenReturn(false);
+		when(mockInetAddr.isSiteLocalAddress()).thenReturn(true);
+		when(mockInetAddr.getHostAddress()).thenReturn("8.8.8.8"); // Public IP
+
+		InterfaceAddress mockIfaceAddr = mock(InterfaceAddress.class);
+		when(mockIfaceAddr.getAddress()).thenReturn(mockInetAddr);
+
+		when(mockIntf.getInterfaceAddresses()).thenReturn(Arrays.asList(mockIfaceAddr));
+
+		List<NetworkInterface> interfaces = Arrays.asList(mockIntf);
+		String result = NetworkUtils.getHotspotInterfaceIP(interfaces);
+
+		assertNull(result); // Public IP should be filtered out by isLikelyApIP
+	}
+
+	@Test
+	public void testGetHotspotInterfaceIP_AllApPatterns() throws Exception {
+		// Test all AP interface patterns: "ap", "wlan1", "p2p", "hotspot", "softap", "wifi_ap"
+		String[] apPatterns = {"ap0", "wlan1", "p2p0", "hotspot0", "softap0", "wifi_ap0"};
+
+		for (String interfaceName : apPatterns) {
+			NetworkInterface mockIntf = mock(NetworkInterface.class);
+			when(mockIntf.isUp()).thenReturn(true);
+			when(mockIntf.isLoopback()).thenReturn(false);
+			when(mockIntf.isVirtual()).thenReturn(false);
+			when(mockIntf.getName()).thenReturn(interfaceName);
+
+			InetAddress mockInetAddr = mock(InetAddress.class);
+			when(mockInetAddr.isLoopbackAddress()).thenReturn(false);
+			when(mockInetAddr.isLinkLocalAddress()).thenReturn(false);
+			when(mockInetAddr.isSiteLocalAddress()).thenReturn(true);
+			when(mockInetAddr.getHostAddress()).thenReturn("192.168.1.1");
+
+			InterfaceAddress mockIfaceAddr = mock(InterfaceAddress.class);
+			when(mockIfaceAddr.getAddress()).thenReturn(mockInetAddr);
+			when(mockIntf.getInterfaceAddresses()).thenReturn(Arrays.asList(mockIfaceAddr));
+
+			List<NetworkInterface> interfaces = Arrays.asList(mockIntf);
+			String result = NetworkUtils.getHotspotInterfaceIP(interfaces);
+
+			assertEquals("AP pattern " + interfaceName + " should be detected", "192.168.1.1", result);
 		}
 	}
-	
-	/**
-	 * Test interface name patterns that should NOT be considered AP interfaces
-	 */
+
 	@Test
-	public void testNonApInterfacePatterns() {
-		String[] nonApInterfaces = {
-			"wlan0",     // Primary WiFi, not AP
-			"eth0",      // Ethernet
-			"lo",        // Loopback
-			"rmnet0",    // Cellular
-			"ccmni0",    // Cellular (MediaTek)
-			"pdp_ip0",   // Cellular
-			"ppp0",      // Point-to-point
-			"tun0",      // VPN tunnel
-			"dummy0",    // Dummy interface
-			"sit0"       // IPv6-in-IPv4 tunnel
-		};
-		
-		for (String ifName : nonApInterfaces) {
-			// Use same contains() logic as NetworkUtils to be consistent
-			boolean matches = ifName.contains("ap") || 
-				ifName.contains("wlan1") ||
-				ifName.contains("p2p") || 
-				ifName.contains("hotspot") || 
-				ifName.contains("softap") || 
-				ifName.contains("wifi_ap");
-			assertFalse("Interface " + ifName + " should not match AP patterns", matches);
+	public void testGetHotspotInterfaceIP_CellularInterfacesFiltered() throws Exception {
+		// Test that cellular interfaces are filtered out (security feature)
+		String[] cellularNames = {"rmnet0", "ccmni0", "pdp_ip0", "ppp0", "cellular0", "mobile0", "radio0", "baseband0"};
+
+		for (String cellularName : cellularNames) {
+			NetworkInterface mockIntf = mock(NetworkInterface.class);
+			when(mockIntf.isUp()).thenReturn(true);
+			when(mockIntf.isLoopback()).thenReturn(false);
+			when(mockIntf.isVirtual()).thenReturn(false);
+			when(mockIntf.getName()).thenReturn(cellularName);
+
+			// Even if it has AP-like IP, should be filtered out by cellular detection
+			InetAddress mockInetAddr = mock(InetAddress.class);
+			when(mockInetAddr.isLoopbackAddress()).thenReturn(false);
+			when(mockInetAddr.isLinkLocalAddress()).thenReturn(false);
+			when(mockInetAddr.isSiteLocalAddress()).thenReturn(true);
+			when(mockInetAddr.getHostAddress()).thenReturn("192.168.1.1");
+
+			InterfaceAddress mockIfaceAddr = mock(InterfaceAddress.class);
+			when(mockIfaceAddr.getAddress()).thenReturn(mockInetAddr);
+			when(mockIntf.getInterfaceAddresses()).thenReturn(Arrays.asList(mockIfaceAddr));
+
+			List<NetworkInterface> interfaces = Arrays.asList(mockIntf);
+			String result = NetworkUtils.getHotspotInterfaceIP(interfaces);
+
+			assertNull("Cellular interface " + cellularName + " should be filtered out", result);
 		}
 	}
-	
-	/**
-	 * Test potential false positives with contains() pattern matching
-	 */
+
 	@Test
-	public void testFalsePositiveApPatterns() {
-		// These contain AP patterns but shouldn't be considered AP interfaces
-		String[] actualFalsePositives = {
-			"laptop",      // contains "ap" - bug in NetworkUtils
-			"paperwork",   // contains "ap" - bug in NetworkUtils  
-			"snapdragon",  // contains "ap" - bug in NetworkUtils
-			"wrapper",     // contains "ap" (w-r-[ap]-p-e-r) - bug in NetworkUtils
+	public void testGetHotspotInterfaceIP_AllPrivateIPRanges() throws Exception {
+		// Test all supported private IP ranges: 192.168.x, 10.x, 172.16-31.x
+		String[] validPrivateIPs = {
+			"192.168.1.1",    // 192.168.x.x range
+			"192.168.0.1",
+			"10.0.0.1",       // 10.x.x.x range
+			"10.255.255.1",
+			"172.16.0.1",     // 172.16-31.x.x range
+			"172.31.255.1"
 		};
-		
-		// These should NOT match any patterns
-		String[] shouldNotMatch = {
-			"transport",   // contains "p" but not "p2p"
-			"ethernet",    // no matching patterns
-			"loopback",    // no matching patterns
-			"tunnel"       // no matching patterns
-		};
-		
-		// Test the false positives (bugs in current implementation)
-		for (String ifName : actualFalsePositives) {
-			boolean matches = ifName.contains("ap") || 
-				ifName.contains("wlan1") ||
-				ifName.contains("p2p") || 
-				ifName.contains("hotspot") || 
-				ifName.contains("softap") || 
-				ifName.contains("wifi_ap");
-			// These WOULD match current implementation (documenting the bug)
-			assertTrue("Interface " + ifName + " incorrectly matches AP patterns (known NetworkUtils bug)", matches);
-		}
-		
-		// Test interfaces that should correctly NOT match
-		for (String ifName : shouldNotMatch) {
-			boolean matches = ifName.contains("ap") || 
-				ifName.contains("wlan1") ||
-				ifName.contains("p2p") || 
-				ifName.contains("hotspot") || 
-				ifName.contains("softap") || 
-				ifName.contains("wifi_ap");
-			assertFalse("Interface " + ifName + " should not match AP patterns", matches);
+
+		for (String ip : validPrivateIPs) {
+			NetworkInterface mockIntf = mock(NetworkInterface.class);
+			when(mockIntf.isUp()).thenReturn(true);
+			when(mockIntf.isLoopback()).thenReturn(false);
+			when(mockIntf.isVirtual()).thenReturn(false);
+			when(mockIntf.getName()).thenReturn("ap0");
+
+			InetAddress mockInetAddr = mock(InetAddress.class);
+			when(mockInetAddr.isLoopbackAddress()).thenReturn(false);
+			when(mockInetAddr.isLinkLocalAddress()).thenReturn(false);
+			when(mockInetAddr.isSiteLocalAddress()).thenReturn(true);
+			when(mockInetAddr.getHostAddress()).thenReturn(ip);
+
+			InterfaceAddress mockIfaceAddr = mock(InterfaceAddress.class);
+			when(mockIfaceAddr.getAddress()).thenReturn(mockInetAddr);
+			when(mockIntf.getInterfaceAddresses()).thenReturn(Arrays.asList(mockIfaceAddr));
+
+			List<NetworkInterface> interfaces = Arrays.asList(mockIntf);
+			String result = NetworkUtils.getHotspotInterfaceIP(interfaces);
+
+			assertEquals("Private IP " + ip + " should be accepted", ip, result);
 		}
 	}
-	
-	/**
-	 * Test IP address validation for private ranges
-	 */
+
 	@Test
-	public void testPrivateIpRanges() {
-		// These tests verify the IP range logic used in isLikelyApIP
-		
-		// 192.168.x.x range (most common for AP)
-		assertTrue("192.168.1.1 should be in private range", 
-			"192.168.1.1".startsWith("192.168."));
-		assertTrue("192.168.0.1 should be in private range",
-			"192.168.0.1".startsWith("192.168."));
-		assertTrue("192.168.255.254 should be in private range",
-			"192.168.255.254".startsWith("192.168."));
-		
-		// 10.x.x.x range
-		assertTrue("10.0.0.1 should be in private range",
-			"10.0.0.1".startsWith("10."));
-		assertTrue("10.255.255.254 should be in private range",
-			"10.255.255.254".startsWith("10."));
-		
-		// 172.16.x.x - 172.31.x.x range
-		assertTrue("172.16.0.1 should match private range pattern",
-			"172.16.0.1".matches("172\\.(1[6-9]|2[0-9]|3[0-1])\\..*"));
-		assertTrue("172.31.255.254 should match private range pattern",
-			"172.31.255.254".matches("172\\.(1[6-9]|2[0-9]|3[0-1])\\..*"));
-		
-		// Edge cases for 172.x.x.x range
-		assertFalse("172.15.0.1 should not match private range pattern",
-			"172.15.0.1".matches("172\\.(1[6-9]|2[0-9]|3[0-1])\\..*"));
-		assertFalse("172.32.0.1 should not match private range pattern",
-			"172.32.0.1".matches("172\\.(1[6-9]|2[0-9]|3[0-1])\\..*"));
-	}
-	
-	/**
-	 * Test cellular interface detection patterns
-	 */
-	@Test
-	public void testCellularInterfacePatterns() {
-		String[] cellularInterfaces = {
-			"rmnet0", "rmnet1", "rmnet_data0",
-			"ccmni0", "ccmni1", 
-			"pdp_ip0", "pdp_ip1",
-			"ppp0", "ppp1",
-			"wwan0", "wwan1"
+	public void testGetHotspotInterfaceIP_InvalidPrivateIPRanges() throws Exception {
+		// Test IPs that should be rejected by isLikelyApIP
+		String[] invalidPrivateIPs = {
+			"172.15.255.255", // Just below 172.16-31 range
+			"172.32.0.0",     // Just above 172.16-31 range
+			"172.0.0.1",      // Way below range
+			"127.0.0.1",      // Loopback
+			"169.254.1.1",    // Link-local
+			"8.8.8.8"         // Public IP
 		};
-		
-		// Test that these match cellular patterns
-		for (String ifName : cellularInterfaces) {
-			boolean matchesCellular = ifName.matches("(rmnet|ccmni|pdp_ip|ppp|wwan).*");
-			assertTrue("Interface " + ifName + " should match cellular patterns", matchesCellular);
+
+		for (String ip : invalidPrivateIPs) {
+			NetworkInterface mockIntf = mock(NetworkInterface.class);
+			when(mockIntf.isUp()).thenReturn(true);
+			when(mockIntf.isLoopback()).thenReturn(false);
+			when(mockIntf.isVirtual()).thenReturn(false);
+			when(mockIntf.getName()).thenReturn("ap0");
+
+			InetAddress mockInetAddr = mock(InetAddress.class);
+			when(mockInetAddr.isLoopbackAddress()).thenReturn(false);
+			when(mockInetAddr.isLinkLocalAddress()).thenReturn(false);
+			when(mockInetAddr.isSiteLocalAddress()).thenReturn(true);
+			when(mockInetAddr.getHostAddress()).thenReturn(ip);
+
+			InterfaceAddress mockIfaceAddr = mock(InterfaceAddress.class);
+			when(mockIfaceAddr.getAddress()).thenReturn(mockInetAddr);
+			when(mockIntf.getInterfaceAddresses()).thenReturn(Arrays.asList(mockIfaceAddr));
+
+			List<NetworkInterface> interfaces = Arrays.asList(mockIntf);
+			String result = NetworkUtils.getHotspotInterfaceIP(interfaces);
+
+			assertNull("Invalid private IP " + ip + " should be rejected", result);
 		}
 	}
-	
-	/**
-	 * Test that WiFi client interfaces are not confused with AP interfaces
-	 */
+
 	@Test
-	public void testWifiClientVsApInterfaces() {
-		// wlan0 is typically WiFi client, wlan1 is typically AP
-		String clientInterface = "wlan0";
-		String apInterface = "wlan1";
-		
-		// Use consistent contains() logic
-		boolean clientMatches = clientInterface.contains("ap") || 
-			clientInterface.contains("wlan1") ||
-			clientInterface.contains("p2p") || 
-			clientInterface.contains("hotspot") || 
-			clientInterface.contains("softap") || 
-			clientInterface.contains("wifi_ap");
-		assertFalse("wlan0 should not be considered AP interface", clientMatches);
-		
-		boolean apMatches = apInterface.contains("ap") || 
-			apInterface.contains("wlan1") ||
-			apInterface.contains("p2p") || 
-			apInterface.contains("hotspot") || 
-			apInterface.contains("softap") || 
-			apInterface.contains("wifi_ap");
-		assertTrue("wlan1 should be considered AP interface", apMatches);
+	public void testGetHotspotInterfaceIP_MultipleInterfaces() throws Exception {
+		// Test realistic scenario: cellular first, then WiFi client, then AP
+		NetworkInterface cellularIntf = mock(NetworkInterface.class);
+		when(cellularIntf.isUp()).thenReturn(true);
+		when(cellularIntf.isLoopback()).thenReturn(false);
+		when(cellularIntf.isVirtual()).thenReturn(false);
+		when(cellularIntf.getName()).thenReturn("rmnet0"); // Should be filtered
+
+		NetworkInterface wifiClientIntf = mock(NetworkInterface.class);
+		when(wifiClientIntf.isUp()).thenReturn(true);
+		when(wifiClientIntf.isLoopback()).thenReturn(false);
+		when(wifiClientIntf.isVirtual()).thenReturn(false);
+		when(wifiClientIntf.getName()).thenReturn("wlan0"); // Not AP pattern
+
+		NetworkInterface apIntf = mock(NetworkInterface.class);
+		when(apIntf.isUp()).thenReturn(true);
+		when(apIntf.isLoopback()).thenReturn(false);
+		when(apIntf.isVirtual()).thenReturn(false);
+		when(apIntf.getName()).thenReturn("ap0"); // AP pattern
+
+		InetAddress mockInetAddr = mock(InetAddress.class);
+		when(mockInetAddr.isLoopbackAddress()).thenReturn(false);
+		when(mockInetAddr.isLinkLocalAddress()).thenReturn(false);
+		when(mockInetAddr.isSiteLocalAddress()).thenReturn(true);
+		when(mockInetAddr.getHostAddress()).thenReturn("192.168.43.1");
+
+		InterfaceAddress mockIfaceAddr = mock(InterfaceAddress.class);
+		when(mockIfaceAddr.getAddress()).thenReturn(mockInetAddr);
+		when(apIntf.getInterfaceAddresses()).thenReturn(Arrays.asList(mockIfaceAddr));
+
+		// Other interfaces return empty address lists
+		when(cellularIntf.getInterfaceAddresses()).thenReturn(Collections.emptyList());
+		when(wifiClientIntf.getInterfaceAddresses()).thenReturn(Collections.emptyList());
+
+		List<NetworkInterface> interfaces = Arrays.asList(cellularIntf, wifiClientIntf, apIntf);
+		String result = NetworkUtils.getHotspotInterfaceIP(interfaces);
+
+		assertEquals("Should find AP interface despite cellular and client interfaces", "192.168.43.1", result);
 	}
-	
-	/**
-	 * Test IPv6 address filtering (should be rejected by isLikelyApIP)
-	 */
+
 	@Test
-	public void testIPv6AddressFiltering() {
-		// IPv6 addresses should be filtered out by the "contains(:)" check
-		String[] ipv6Addresses = {
-			"2001:db8::1",          // Regular IPv6
-			"::1",                  // IPv6 loopback  
-			"fe80::1",              // Link-local IPv6
-			"2001:db8:85a3::8a2e:370:7334", // Full IPv6
-			"192.168.1.1:8080"     // IPv4 with port (edge case)
-		};
-		
-		for (String ip : ipv6Addresses) {
-			// Test the same logic as isLikelyApIP uses for IPv6 filtering
-			boolean containsColon = ip.contains(":");
-			assertTrue("IP " + ip + " should contain colon and be filtered out", containsColon);
-		}
-		
-		// IPv4 addresses should NOT contain colons
-		String[] ipv4Addresses = {
-			"192.168.1.1",
-			"10.0.0.1", 
-			"172.16.0.1",
-			"127.0.0.1"
-		};
-		
-		for (String ip : ipv4Addresses) {
-			boolean containsColon = ip.contains(":");
-			assertFalse("IPv4 " + ip + " should not contain colon", containsColon);
-		}
-	}
-	
-	/**
-	 * Test realistic AP interface names from real Android devices
-	 */
-	@Test
-	public void testRealisticApInterfaceNames() {
-		String[] realisticApNames = {
-			"ap0",              // Standard AP interface
-			"wlan1",            // Secondary WiFi interface used as AP
-			"softap0",          // Software AP
-			"wifi_ap0",         // WiFi AP interface
-			"p2p-wlan0-0",      // P2P interface
-			"p2p0",             // P2P interface
-			"hotspot0",         // Hotspot interface
-			"ap_bridge0",       // AP bridge (contains "ap")
-			"wlan1-sta",        // AP interface with suffix (contains "wlan1")
-			"my_hotspot_dev"    // Custom hotspot device (contains "hotspot")
-		};
-		
-		for (String ifName : realisticApNames) {
-			boolean matches = ifName.contains("ap") || 
-				ifName.contains("wlan1") ||
-				ifName.contains("p2p") || 
-				ifName.contains("hotspot") || 
-				ifName.contains("softap") || 
-				ifName.contains("wifi_ap");
-			assertTrue("Realistic AP interface " + ifName + " should match patterns", matches);
-		}
-	}
-	
-	/**
-	 * Test comprehensive IP validation edge cases for 172.x.x.x ranges
-	 */
-	@Test
-	public void testIpValidationEdgeCases() {
-		// Test 172.x.x.x range boundaries (172.16-31.x.x is private)
-		String[] validPrivate172 = {
-			"172.16.0.1",     // Lower bound
-			"172.31.255.254", // Upper bound  
-			"172.20.1.1",     // Middle
-			"172.16.255.255", // Edge case
-			"172.31.0.0"      // Edge case
-		};
-		
-		String[] invalidPrivate172 = {
-			"172.15.255.255", // Just below range
-			"172.32.0.0",     // Just above range
-			"172.0.0.1",      // Way below
-			"172.255.255.255" // Way above
-		};
-		
-		// Test valid private 172.x ranges
-		for (String ip : validPrivate172) {
-			boolean matches = ip.matches("172\\.(1[6-9]|2[0-9]|3[0-1])\\..*");
-			assertTrue("IP " + ip + " should match 172.16-31.x.x pattern", matches);
-		}
-		
-		// Test invalid private 172.x ranges  
-		for (String ip : invalidPrivate172) {
-			boolean matches = ip.matches("172\\.(1[6-9]|2[0-9]|3[0-1])\\..*");
-			assertFalse("IP " + ip + " should not match 172.16-31.x.x pattern", matches);
-		}
-		
-		// Test malformed IP addresses
-		String[] malformedIPs = {
-			"",
-			"192.168",
-			"192.168.1",
-			"192.168.1.1.1",
-			"192.168.1.256",
-			"not.an.ip.address",
-			"192.168.1.-1"
-		};
-		
-		for (String ip : malformedIPs) {
-			// Most malformed IPs won't match any private range patterns
-			boolean matchesAny = ip.startsWith("192.168.") ||
-				ip.startsWith("10.") ||
-				ip.matches("172\\.(1[6-9]|2[0-9]|3[0-1])\\..*");
-			// This documents expected behavior - some malformed IPs might accidentally match
-		}
-	}
-	
-	/**
-	 * Test null and empty input handling
-	 */
-	@Test 
-	public void testNullAndEmptyInputHandling() {
-		// Test empty interface names against AP patterns
-		String[] emptyInputs = {"", "   ", "\t", "\n"};
-		
-		for (String input : emptyInputs) {
-			boolean matches = input.contains("ap") || 
-				input.contains("wlan1") ||
-				input.contains("p2p") || 
-				input.contains("hotspot") || 
-				input.contains("softap") || 
-				input.contains("wifi_ap");
-			assertFalse("Empty/whitespace input '" + input + "' should not match AP patterns", matches);
-		}
-		
-		// Test IP validation with null/empty
-		assertFalse("Empty string should not match any private IP pattern", 
-			"".startsWith("192.168."));
-		assertFalse("Empty string should not match 10.x pattern", 
-			"".startsWith("10."));
-		assertFalse("Empty string should not match 172.x pattern", 
-			"".matches("172\\.(1[6-9]|2[0-9]|3[0-1])\\..*"));
-		
-		// Test colon detection for IPv6 filtering
-		assertFalse("Empty string should not contain colon", "".contains(":"));
-	}
-	
-	/**
-	 * Test case sensitivity handling (NetworkUtils uses toLowerCase())
-	 */
-	@Test
-	public void testCaseSensitivityHandling() {
-		String[] mixedCaseApInterfaces = {
-			"AP0", "Ap1", "aP2",           // Mixed case "ap"
-			"WLAN1", "Wlan1", "wLaN1",     // Mixed case "wlan1"  
-			"P2P0", "p2P-wlan0-0",         // Mixed case "p2p"
-			"HOTSPOT0", "HotSpot1",        // Mixed case "hotspot"
-			"SOFTAP0", "SoftAP1",          // Mixed case "softap"
-			"WIFI_AP0", "WiFi_AP1"         // Mixed case "wifi_ap"
-		};
-		
-		for (String ifName : mixedCaseApInterfaces) {
-			// Test against lowercase patterns (what NetworkUtils actually uses)
-			String lowercase = ifName.toLowerCase();
-			boolean matches = lowercase.contains("ap") || 
-				lowercase.contains("wlan1") ||
-				lowercase.contains("p2p") || 
-				lowercase.contains("hotspot") || 
-				lowercase.contains("softap") || 
-				lowercase.contains("wifi_ap");
-			assertTrue("Interface " + ifName + " should match when converted to lowercase", matches);
-		}
-	}
-	
-	/**
-	 * Test pattern boundary conditions  
-	 */
-	@Test
-	public void testPatternBoundaryConditions() {
-		// Test minimal pattern matches
-		String[] minimalMatches = {
-			"ap",          // Exact "ap" pattern
-			"p2p",         // Exact "p2p" pattern  
-			"hotspot",     // Exact "hotspot" pattern
-			"softap",      // Exact "softap" pattern
-			"wifi_ap",     // Exact "wifi_ap" pattern
-			"wlan1"        // Exact "wlan1" pattern
-		};
-		
-		for (String ifName : minimalMatches) {
-			boolean matches = ifName.contains("ap") || 
-				ifName.contains("wlan1") ||
-				ifName.contains("p2p") || 
-				ifName.contains("hotspot") || 
-				ifName.contains("softap") || 
-				ifName.contains("wifi_ap");
-			assertTrue("Minimal pattern " + ifName + " should match", matches);
-		}
-		
-		// Test embedded patterns (potential false positives)
-		String[] embeddedPatterns = {
-			"xapx",        // "ap" embedded - WOULD match (potential issue)
-			"xp2px",       // "p2p" embedded - WOULD match (potential issue)  
-			"xhotspotx",   // "hotspot" embedded - WOULD match (potential issue)
-			"xsoftapx",    // "softap" embedded - WOULD match (potential issue)
-		};
-		
-		// Test patterns that should NOT match
-		String[] nonEmbeddedPatterns = {
-			"xhotshotx",   // "hotshot" does NOT contain "hotspot"
-			"ethernet",    // "eth" not any AP pattern
-			"transport",   // "p" not "p2p"
-			"cellular",    // no AP patterns
-		};
-		
-		for (String ifName : embeddedPatterns) {
-			boolean matches = ifName.contains("ap") || 
-				ifName.contains("wlan1") ||
-				ifName.contains("p2p") || 
-				ifName.contains("hotspot") || 
-				ifName.contains("softap") || 
-				ifName.contains("wifi_ap");
-			// These WOULD incorrectly match - documenting the behavior
-			assertTrue("Embedded pattern " + ifName + " incorrectly matches (known issue)", matches);
-		}
-		
-		for (String ifName : nonEmbeddedPatterns) {
-			boolean matches = ifName.contains("ap") || 
-				ifName.contains("wlan1") ||
-				ifName.contains("p2p") || 
-				ifName.contains("hotspot") || 
-				ifName.contains("softap") || 
-				ifName.contains("wifi_ap");
-			assertFalse("Non-embedded pattern " + ifName + " should not match", matches);
-		}
-	}
-	
-	/**
-	 * Test string constants are properly defined and accessible
-	 */
-	@Test
-	public void testBindAddressConstantsArePublic() {
-		// Verify all constants are accessible and have expected values
-		assertNotNull("BIND_LOCALHOST should not be null", NetworkUtils.BIND_LOCALHOST);
-		assertNotNull("BIND_ALL_INTERFACES should not be null", NetworkUtils.BIND_ALL_INTERFACES);
-		assertNotNull("BIND_ACCESS_POINT should not be null", NetworkUtils.BIND_ACCESS_POINT);
-		
-		assertFalse("BIND_LOCALHOST should not be empty", NetworkUtils.BIND_LOCALHOST.isEmpty());
-		assertFalse("BIND_ALL_INTERFACES should not be empty", NetworkUtils.BIND_ALL_INTERFACES.isEmpty());
-		assertFalse("BIND_ACCESS_POINT should not be empty", NetworkUtils.BIND_ACCESS_POINT.isEmpty());
+	public void testGetHotspotInterfaceIP_InterfaceWithNoAddresses() throws Exception {
+		// Test interface that matches AP pattern but has no addresses
+		NetworkInterface mockIntf = mock(NetworkInterface.class);
+		when(mockIntf.isUp()).thenReturn(true);
+		when(mockIntf.isLoopback()).thenReturn(false);
+		when(mockIntf.isVirtual()).thenReturn(false);
+		when(mockIntf.getName()).thenReturn("ap0");
+		when(mockIntf.getInterfaceAddresses()).thenReturn(Collections.emptyList());
+
+		List<NetworkInterface> interfaces = Arrays.asList(mockIntf);
+		String result = NetworkUtils.getHotspotInterfaceIP(interfaces);
+
+		assertNull("Interface with no addresses should return null", result);
 	}
 }
