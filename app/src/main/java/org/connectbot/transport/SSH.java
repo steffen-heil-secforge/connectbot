@@ -694,7 +694,7 @@ public class SSH extends AbsTransport implements ConnectionMonitor, InteractiveC
 			portForward.setEnabled(true);
 			
 			// Update notification if access point binding is being used
-			if ("access_point".equals(portForward.getBindAddress())) {
+			if (NetworkUtils.BIND_ACCESS_POINT.equals(portForward.getBindAddress())) {
 				manager.updateAccessPointNotification();
 			}
 			
@@ -739,7 +739,7 @@ public class SSH extends AbsTransport implements ConnectionMonitor, InteractiveC
 			portForward.setEnabled(true);
 			
 			// Update notification if access point binding is being used
-			if ("access_point".equals(portForward.getBindAddress())) {
+			if (NetworkUtils.BIND_ACCESS_POINT.equals(portForward.getBindAddress())) {
 				manager.updateAccessPointNotification();
 			}
 			
@@ -778,7 +778,7 @@ public class SSH extends AbsTransport implements ConnectionMonitor, InteractiveC
 			lpf.close();
 			
 			// Update notification if access point binding was being used
-			if ("access_point".equals(portForward.getBindAddress())) {
+			if (NetworkUtils.BIND_ACCESS_POINT.equals(portForward.getBindAddress())) {
 				manager.updateAccessPointNotification();
 			}
 
@@ -811,7 +811,7 @@ public class SSH extends AbsTransport implements ConnectionMonitor, InteractiveC
 			dpf.close();
 			
 			// Update notification if access point binding was being used
-			if ("access_point".equals(portForward.getBindAddress())) {
+			if (NetworkUtils.BIND_ACCESS_POINT.equals(portForward.getBindAddress())) {
 				manager.updateAccessPointNotification();
 			}
 

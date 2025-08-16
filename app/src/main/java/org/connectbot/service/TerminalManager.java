@@ -808,8 +808,8 @@ public class TerminalManager extends Service implements BridgeDisconnectedListen
 		
 		if (shouldMonitor && !apMonitoringActive) {
 			// Start monitoring - hybrid approach: broadcast receiver for fast response + timer for reliability
-			Log.d(TAG, "Starting AP state monitoring (hybrid: broadcast + 30s polling)");
-			apStateTimer.schedule(new ApStateMonitorTask(), 0, 30000);  // 30s polling (was 10s)
+			Log.d(TAG, "Starting AP state monitoring (hybrid: broadcast + 10s polling)");
+			apStateTimer.schedule(new ApStateMonitorTask(), 0, 10000);  // 10s polling
 			apMonitoringActive = true;
 		} else if (!shouldMonitor && apMonitoringActive) {
 			// Stop monitoring
@@ -821,7 +821,7 @@ public class TerminalManager extends Service implements BridgeDisconnectedListen
 	}
 	
 	/**
-	 * Timer task to monitor access point state changes every 30 seconds.
+	 * Timer task to monitor access point state changes every 10 seconds.
 	 * This provides a reliable fallback for AP state monitoring that works on all devices.
 	 * Combined with AccessPointReceiver for immediate response on devices that support broadcasts.
 	 * Only runs when monitoring is active (connections exist with AP port forwards).
