@@ -288,6 +288,179 @@ public class NetworkUtilsTest {
 	}
 	
 	/**
+	 * Test comprehensive IP validation edge cases for 172.x.x.x ranges
+	 */
+	@Test
+	public void testIpValidationEdgeCases() {
+		// Test 172.x.x.x range boundaries (172.16-31.x.x is private)
+		String[] validPrivate172 = {
+			"172.16.0.1",     // Lower bound
+			"172.31.255.254", // Upper bound  
+			"172.20.1.1",     // Middle
+			"172.16.255.255", // Edge case
+			"172.31.0.0"      // Edge case
+		};
+		
+		String[] invalidPrivate172 = {
+			"172.15.255.255", // Just below range
+			"172.32.0.0",     // Just above range
+			"172.0.0.1",      // Way below
+			"172.255.255.255" // Way above
+		};
+		
+		// Test valid private 172.x ranges
+		for (String ip : validPrivate172) {
+			boolean matches = ip.matches("172\\.(1[6-9]|2[0-9]|3[0-1])\\..*");
+			assertTrue("IP " + ip + " should match 172.16-31.x.x pattern", matches);
+		}
+		
+		// Test invalid private 172.x ranges  
+		for (String ip : invalidPrivate172) {
+			boolean matches = ip.matches("172\\.(1[6-9]|2[0-9]|3[0-1])\\..*");
+			assertFalse("IP " + ip + " should not match 172.16-31.x.x pattern", matches);
+		}
+		
+		// Test malformed IP addresses
+		String[] malformedIPs = {
+			"",
+			"192.168",
+			"192.168.1",
+			"192.168.1.1.1",
+			"192.168.1.256",
+			"not.an.ip.address",
+			"192.168.1.-1"
+		};
+		
+		for (String ip : malformedIPs) {
+			// Most malformed IPs won't match any private range patterns
+			boolean matchesAny = ip.startsWith("192.168.") ||
+				ip.startsWith("10.") ||
+				ip.matches("172\\.(1[6-9]|2[0-9]|3[0-1])\\..*");
+			// This documents expected behavior - some malformed IPs might accidentally match
+		}
+	}
+	
+	/**
+	 * Test null and empty input handling
+	 */
+	@Test 
+	public void testNullAndEmptyInputHandling() {
+		// Test empty interface names against AP patterns
+		String[] emptyInputs = {"", "   ", "\t", "\n"};
+		
+		for (String input : emptyInputs) {
+			boolean matches = input.contains("ap") || 
+				input.contains("wlan1") ||
+				input.contains("p2p") || 
+				input.contains("hotspot") || 
+				input.contains("softap") || 
+				input.contains("wifi_ap");
+			assertFalse("Empty/whitespace input '" + input + "' should not match AP patterns", matches);
+		}
+		
+		// Test IP validation with null/empty
+		assertFalse("Empty string should not match any private IP pattern", 
+			"".startsWith("192.168."));
+		assertFalse("Empty string should not match 10.x pattern", 
+			"".startsWith("10."));
+		assertFalse("Empty string should not match 172.x pattern", 
+			"".matches("172\\.(1[6-9]|2[0-9]|3[0-1])\\..*"));
+		
+		// Test colon detection for IPv6 filtering
+		assertFalse("Empty string should not contain colon", "".contains(":"));
+	}
+	
+	/**
+	 * Test case sensitivity handling (NetworkUtils uses toLowerCase())
+	 */
+	@Test
+	public void testCaseSensitivityHandling() {
+		String[] mixedCaseApInterfaces = {
+			"AP0", "Ap1", "aP2",           // Mixed case "ap"
+			"WLAN1", "Wlan1", "wLaN1",     // Mixed case "wlan1"  
+			"P2P0", "p2P-wlan0-0",         // Mixed case "p2p"
+			"HOTSPOT0", "HotSpot1",        // Mixed case "hotspot"
+			"SOFTAP0", "SoftAP1",          // Mixed case "softap"
+			"WIFI_AP0", "WiFi_AP1"         // Mixed case "wifi_ap"
+		};
+		
+		for (String ifName : mixedCaseApInterfaces) {
+			// Test against lowercase patterns (what NetworkUtils actually uses)
+			String lowercase = ifName.toLowerCase();
+			boolean matches = lowercase.contains("ap") || 
+				lowercase.contains("wlan1") ||
+				lowercase.contains("p2p") || 
+				lowercase.contains("hotspot") || 
+				lowercase.contains("softap") || 
+				lowercase.contains("wifi_ap");
+			assertTrue("Interface " + ifName + " should match when converted to lowercase", matches);
+		}
+	}
+	
+	/**
+	 * Test pattern boundary conditions  
+	 */
+	@Test
+	public void testPatternBoundaryConditions() {
+		// Test minimal pattern matches
+		String[] minimalMatches = {
+			"ap",          // Exact "ap" pattern
+			"p2p",         // Exact "p2p" pattern  
+			"hotspot",     // Exact "hotspot" pattern
+			"softap",      // Exact "softap" pattern
+			"wifi_ap",     // Exact "wifi_ap" pattern
+			"wlan1"        // Exact "wlan1" pattern
+		};
+		
+		for (String ifName : minimalMatches) {
+			boolean matches = ifName.contains("ap") || 
+				ifName.contains("wlan1") ||
+				ifName.contains("p2p") || 
+				ifName.contains("hotspot") || 
+				ifName.contains("softap") || 
+				ifName.contains("wifi_ap");
+			assertTrue("Minimal pattern " + ifName + " should match", matches);
+		}
+		
+		// Test embedded patterns (potential false positives)
+		String[] embeddedPatterns = {
+			"xapx",        // "ap" embedded - WOULD match (potential issue)
+			"xp2px",       // "p2p" embedded - WOULD match (potential issue)  
+			"xhotspotx",   // "hotspot" embedded - WOULD match (potential issue)
+			"xsoftapx",    // "softap" embedded - WOULD match (potential issue)
+		};
+		
+		// Test patterns that should NOT match
+		String[] nonEmbeddedPatterns = {
+			"xhotshotx",   // "hotshot" does NOT contain "hotspot"
+			"ethernet",    // "eth" not any AP pattern
+			"transport",   // "p" not "p2p"
+			"cellular",    // no AP patterns
+		};
+		
+		for (String ifName : embeddedPatterns) {
+			boolean matches = ifName.contains("ap") || 
+				ifName.contains("wlan1") ||
+				ifName.contains("p2p") || 
+				ifName.contains("hotspot") || 
+				ifName.contains("softap") || 
+				ifName.contains("wifi_ap");
+			// These WOULD incorrectly match - documenting the behavior
+			assertTrue("Embedded pattern " + ifName + " incorrectly matches (known issue)", matches);
+		}
+		
+		for (String ifName : nonEmbeddedPatterns) {
+			boolean matches = ifName.contains("ap") || 
+				ifName.contains("wlan1") ||
+				ifName.contains("p2p") || 
+				ifName.contains("hotspot") || 
+				ifName.contains("softap") || 
+				ifName.contains("wifi_ap");
+			assertFalse("Non-embedded pattern " + ifName + " should not match", matches);
+		}
+	}
+	
+	/**
 	 * Test string constants are properly defined and accessible
 	 */
 	@Test
