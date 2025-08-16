@@ -22,7 +22,6 @@ import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
-import android.net.wifi.WifiManager;
 import android.util.Log;
 
 import java.net.InetAddress;
@@ -173,8 +172,8 @@ public class NetworkUtils {
 		// Since we've already filtered out cellular interfaces by their
 		// network characteristics, we can be permissive with IP ranges
 		return ip.startsWith("192.168.") ||
-			   ip.startsWith("10.") ||
-			   ip.matches("172\\.(1[6-9]|2[0-9]|3[0-1])\\..*");
+			ip.startsWith("10.") ||
+			ip.matches("172\\.(1[6-9]|2[0-9]|3[0-1])\\..*");
 	}
 	
 	
@@ -225,8 +224,8 @@ public class NetworkUtils {
 				// Legacy API
 				NetworkInfo networkInfo = cm.getActiveNetworkInfo();
 				return networkInfo != null && 
-					   networkInfo.isConnected() && 
-					   networkInfo.getType() == ConnectivityManager.TYPE_WIFI;
+					networkInfo.isConnected() && 
+					networkInfo.getType() == ConnectivityManager.TYPE_WIFI;
 			}
 		} catch (Exception e) {
 			Log.e(TAG, "Error checking WiFi connection", e);

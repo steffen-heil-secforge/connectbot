@@ -22,7 +22,6 @@ import org.connectbot.HostListActivity;
 import org.connectbot.R;
 import org.connectbot.bean.HostBean;
 import org.connectbot.util.HostDatabase;
-import org.connectbot.util.NetworkUtils;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
