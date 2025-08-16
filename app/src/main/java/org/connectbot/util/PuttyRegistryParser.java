@@ -195,16 +195,16 @@ public class PuttyRegistryParser {
 		int bomLength = 0;
 		
 		if (allBytes.length >= 3 && 
-			allBytes[0] == (byte)0xEF && allBytes[1] == (byte)0xBB && allBytes[2] == (byte)0xBF) {
+			allBytes[0] == (byte) 0xEF && allBytes[1] == (byte) 0xBB && allBytes[2] == (byte) 0xBF) {
 			// UTF-8 BOM (EF BB BF)
 			charset = Charset.forName("UTF-8");
 			bomLength = 3;
 		} else if (allBytes.length >= 2) {
-			if (allBytes[0] == (byte)0xFF && allBytes[1] == (byte)0xFE) {
+			if (allBytes[0] == (byte) 0xFF && allBytes[1] == (byte) 0xFE) {
 				// UTF-16 Little Endian BOM (FF FE)
 				charset = Charset.forName("UTF-16LE");
 				bomLength = 2;
-			} else if (allBytes[0] == (byte)0xFE && allBytes[1] == (byte)0xFF) {
+			} else if (allBytes[0] == (byte) 0xFE && allBytes[1] == (byte) 0xFF) {
 				// UTF-16 Big Endian BOM (FE FF)
 				charset = Charset.forName("UTF-16BE");
 				bomLength = 2;
@@ -245,7 +245,7 @@ public class PuttyRegistryParser {
 	 */
 	private boolean isValidRegistryFile(String content) {
 		return content.contains("Windows Registry Editor") || 
-			   content.contains("[HKEY_");
+			content.contains("[HKEY_");
 	}
 	
 	/**
@@ -623,7 +623,7 @@ public class PuttyRegistryParser {
 		
 		// Basic hostname validation - accept FQDN, IPv4, IPv6
 		return hostname.matches("^[a-zA-Z0-9.-]+$") || 
-			   hostname.matches("^\\[?[0-9a-fA-F:]+\\]?$"); // Simple IPv6 check
+			hostname.matches("^\\[?[0-9a-fA-F:]+\\]?$"); // Simple IPv6 check
 	}
 	
 	/**

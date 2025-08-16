@@ -218,9 +218,9 @@ public class PuttyImportDialog extends DialogFragment {
 	
 	private boolean portForwardsEqual(PortForwardBean existing, PortForward session) {
 		return existing.getType().equals(session.getType()) &&
-			   existing.getSourcePort() == session.getSourcePort() &&
-			   Objects.equals(existing.getDestAddr(), session.getDestHost()) &&
-			   existing.getDestPort() == session.getDestPort();
+			existing.getSourcePort() == session.getSourcePort() &&
+			Objects.equals(existing.getDestAddr(), session.getDestHost()) &&
+			existing.getDestPort() == session.getDestPort();
 	}
 	
 	private void showWarnings() {
