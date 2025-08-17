@@ -52,7 +52,7 @@ public class HostDatabase extends RobustSQLiteOpenHelper implements HostStorage,
 	public final static String TAG = "CB.HostDatabase";
 
 	public final static String DB_NAME = "hosts";
-	public final static int DB_VERSION = 26;
+	public final static int DB_VERSION = 27;
 
 	public final static String TABLE_HOSTS = "hosts";
 	public final static String FIELD_HOST_NICKNAME = "nickname";
@@ -202,6 +202,9 @@ public class HostDatabase extends RobustSQLiteOpenHelper implements HostStorage,
 
 		this.displayDensity = context.getResources().getDisplayMetrics().density;
 		mDb = getWritableDatabase();
+		
+		// Enable foreign key constraints for this connection
+		mDb.execSQL("PRAGMA foreign_keys = ON");
 	}
 
 	@Override
@@ -212,13 +215,17 @@ public class HostDatabase extends RobustSQLiteOpenHelper implements HostStorage,
 	}
 
 	private void createTables(SQLiteDatabase db) {
+		// Enable foreign key constraints
+		db.execSQL("PRAGMA foreign_keys = ON");
+		
 		db.execSQL(CREATE_TABLE_HOSTS);
 
 		db.execSQL("CREATE TABLE " + TABLE_KNOWNHOSTS
 				+ " (_id INTEGER PRIMARY KEY, "
 				+ FIELD_KNOWNHOSTS_HOSTID + " INTEGER, "
 				+ FIELD_KNOWNHOSTS_HOSTKEYALGO + " TEXT, "
-				+ FIELD_KNOWNHOSTS_HOSTKEY + " BLOB)");
+				+ FIELD_KNOWNHOSTS_HOSTKEY + " BLOB, "
+				+ "FOREIGN KEY (" + FIELD_KNOWNHOSTS_HOSTID + ") REFERENCES " + TABLE_HOSTS + "(_id) ON DELETE CASCADE)");
 
 		db.execSQL("CREATE INDEX " + TABLE_KNOWNHOSTS + FIELD_KNOWNHOSTS_HOSTID + "index ON "
 				+ TABLE_KNOWNHOSTS + " (" + FIELD_KNOWNHOSTS_HOSTID + ");");
@@ -231,7 +238,8 @@ public class HostDatabase extends RobustSQLiteOpenHelper implements HostStorage,
 				+ FIELD_PORTFORWARD_SOURCEPORT + " INTEGER NOT NULL DEFAULT 8080, "
 				+ FIELD_PORTFORWARD_DESTADDR + " TEXT, "
 				+ FIELD_PORTFORWARD_DESTPORT + " INTEGER, "
-				+ FIELD_PORTFORWARD_BINDADDR + " TEXT DEFAULT 'localhost')");
+				+ FIELD_PORTFORWARD_BINDADDR + " TEXT DEFAULT 'localhost', "
+				+ "FOREIGN KEY (" + FIELD_PORTFORWARD_HOSTID + ") REFERENCES " + TABLE_HOSTS + "(_id) ON DELETE CASCADE)");
 
 		db.execSQL("CREATE INDEX " + TABLE_PORTFORWARDS + FIELD_PORTFORWARD_HOSTID + "index ON "
 				+ TABLE_PORTFORWARDS + " (" + FIELD_PORTFORWARD_HOSTID + ");");
@@ -298,7 +306,8 @@ public class HostDatabase extends RobustSQLiteOpenHelper implements HostStorage,
 					+ FIELD_PORTFORWARD_SOURCEPORT + " INTEGER NOT NULL DEFAULT 8080, "
 					+ FIELD_PORTFORWARD_DESTADDR + " TEXT, "
 					+ FIELD_PORTFORWARD_DESTPORT + " INTEGER, "
-					+ FIELD_PORTFORWARD_BINDADDR + " TEXT DEFAULT 'localhost')");
+					+ FIELD_PORTFORWARD_BINDADDR + " TEXT DEFAULT 'localhost', "
+					+ "FOREIGN KEY (" + FIELD_PORTFORWARD_HOSTID + ") REFERENCES " + TABLE_HOSTS + "(_id) ON DELETE CASCADE)");
 			// fall through
 		case 12:
 			db.execSQL("ALTER TABLE " + TABLE_HOSTS
@@ -404,6 +413,61 @@ public class HostDatabase extends RobustSQLiteOpenHelper implements HostStorage,
 			// Add bind address column to port forwards table
 			db.execSQL("ALTER TABLE " + TABLE_PORTFORWARDS
 					+ " ADD COLUMN " + FIELD_PORTFORWARD_BINDADDR + " TEXT DEFAULT 'localhost'");
+			// fall through
+		case 26:
+			// Add foreign key constraints to port forwards and known hosts tables
+			// SQLite doesn't support adding foreign key constraints to existing tables,
+			// so we need to recreate the tables
+			db.execSQL("PRAGMA foreign_keys = OFF");
+			
+			// Create new port forwards table with foreign key constraint
+			db.execSQL("CREATE TABLE " + TABLE_PORTFORWARDS + "_new"
+					+ " (_id INTEGER PRIMARY KEY, "
+					+ FIELD_PORTFORWARD_HOSTID + " INTEGER, "
+					+ FIELD_PORTFORWARD_NICKNAME + " TEXT, "
+					+ FIELD_PORTFORWARD_TYPE + " TEXT NOT NULL DEFAULT '" + PORTFORWARD_LOCAL + "', "
+					+ FIELD_PORTFORWARD_SOURCEPORT + " INTEGER NOT NULL DEFAULT 8080, "
+					+ FIELD_PORTFORWARD_DESTADDR + " TEXT, "
+					+ FIELD_PORTFORWARD_DESTPORT + " INTEGER, "
+					+ FIELD_PORTFORWARD_BINDADDR + " TEXT DEFAULT 'localhost', "
+					+ "FOREIGN KEY (" + FIELD_PORTFORWARD_HOSTID + ") REFERENCES " + TABLE_HOSTS + "(_id) ON DELETE CASCADE)");
+			
+			// Copy data from old table to new table, filtering out orphaned records
+			db.execSQL("INSERT INTO " + TABLE_PORTFORWARDS + "_new "
+					+ "SELECT p.* FROM " + TABLE_PORTFORWARDS + " p "
+					+ "INNER JOIN " + TABLE_HOSTS + " h ON p." + FIELD_PORTFORWARD_HOSTID + " = h._id");
+			
+			// Drop old table and rename new table
+			db.execSQL("DROP TABLE " + TABLE_PORTFORWARDS);
+			db.execSQL("ALTER TABLE " + TABLE_PORTFORWARDS + "_new RENAME TO " + TABLE_PORTFORWARDS);
+			
+			// Recreate port forwards index
+			db.execSQL("CREATE INDEX " + TABLE_PORTFORWARDS + FIELD_PORTFORWARD_HOSTID + "index ON "
+					+ TABLE_PORTFORWARDS + " (" + FIELD_PORTFORWARD_HOSTID + ");");
+			
+			// Create new known hosts table with foreign key constraint
+			db.execSQL("CREATE TABLE " + TABLE_KNOWNHOSTS + "_new"
+					+ " (_id INTEGER PRIMARY KEY, "
+					+ FIELD_KNOWNHOSTS_HOSTID + " INTEGER, "
+					+ FIELD_KNOWNHOSTS_HOSTKEYALGO + " TEXT, "
+					+ FIELD_KNOWNHOSTS_HOSTKEY + " BLOB, "
+					+ "FOREIGN KEY (" + FIELD_KNOWNHOSTS_HOSTID + ") REFERENCES " + TABLE_HOSTS + "(_id) ON DELETE CASCADE)");
+			
+			// Copy data from old table to new table, filtering out orphaned records
+			db.execSQL("INSERT INTO " + TABLE_KNOWNHOSTS + "_new "
+					+ "SELECT k.* FROM " + TABLE_KNOWNHOSTS + " k "
+					+ "INNER JOIN " + TABLE_HOSTS + " h ON k." + FIELD_KNOWNHOSTS_HOSTID + " = h._id");
+			
+			// Drop old table and rename new table
+			db.execSQL("DROP TABLE " + TABLE_KNOWNHOSTS);
+			db.execSQL("ALTER TABLE " + TABLE_KNOWNHOSTS + "_new RENAME TO " + TABLE_KNOWNHOSTS);
+			
+			// Recreate known hosts index
+			db.execSQL("CREATE INDEX " + TABLE_KNOWNHOSTS + FIELD_KNOWNHOSTS_HOSTID + "index ON "
+					+ TABLE_KNOWNHOSTS + " (" + FIELD_KNOWNHOSTS_HOSTID + ");");
+			
+			// Re-enable foreign keys
+			db.execSQL("PRAGMA foreign_keys = ON");
 		}
 	}
 
@@ -464,7 +528,8 @@ public class HostDatabase extends RobustSQLiteOpenHelper implements HostStorage,
 		String[] hostIdArg = new String[] {String.valueOf(host.getId())};
 		mDb.beginTransaction();
 		try {
-			mDb.delete(TABLE_KNOWNHOSTS, FIELD_KNOWNHOSTS_HOSTID + " = ?", hostIdArg);
+			// Note: Both known hosts and port forwards will be automatically deleted 
+			// by foreign key cascade constraints after migration to DB version 27
 			mDb.delete(TABLE_HOSTS, "_id = ?", hostIdArg);
 			mDb.setTransactionSuccessful();
 		} finally {
