@@ -906,8 +906,8 @@ public class HostListActivity extends AppCompatListActivity implements OnHostSta
 		HostDatabase hostDatabase = HostDatabase.get(this);
 		List<HostBean> existingHosts = hostDatabase.getHosts(false);
 		
-		for (org.connectbot.util.PuttySession session : result.getValidSessions()) {
-			HostBean existingHost = findExistingHost(existingHosts, session.getSessionName());
+		for (HostBean session : result.getValidSessions()) {
+			HostBean existingHost = findExistingHost(existingHosts, session.getNickname());
 			if (existingHost == null || hasSignificantDifferences(existingHost, session)) {
 				importableCount++;
 			}
@@ -925,7 +925,7 @@ public class HostListActivity extends AppCompatListActivity implements OnHostSta
 		return null;
 	}
 	
-	private boolean hasSignificantDifferences(HostBean existingHost, org.connectbot.util.PuttySession session) {
+	private boolean hasSignificantDifferences(HostBean existingHost, HostBean session) {
 		// Compare hostname
 		if (!existingHost.getHostname().equals(session.getHostname())) {
 			return true;
@@ -949,7 +949,7 @@ public class HostListActivity extends AppCompatListActivity implements OnHostSta
 		}
 		
 		// Compare compression
-		if (existingHost.getCompression() != session.isCompression()) {
+		if (existingHost.getCompression() != session.getCompression()) {
 			return true;
 		}
 		

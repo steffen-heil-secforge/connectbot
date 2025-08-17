@@ -37,12 +37,9 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.connectbot.bean.HostBean;
-import org.connectbot.bean.PortForwardBean;
-import org.connectbot.util.PuttySession.PortForward;
 import org.connectbot.util.HostDatabase;
 import org.connectbot.util.NetworkUtils;
 import org.connectbot.util.PuttyRegistryParser;
-import org.connectbot.util.PuttySession;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -102,8 +99,8 @@ public class PuttyImportDialog extends DialogFragment {
 		sessionList.setLayoutManager(new LinearLayoutManager(getContext()));
 		
 		// Sort sessions lexically by name
-		List<PuttySession> sortedSessions = new ArrayList<>(parseResult.getValidSessions());
-		sortedSessions.sort((a, b) -> a.getSessionName().compareToIgnoreCase(b.getSessionName()));
+		List<HostBean> sortedSessions = new ArrayList<>(parseResult.getValidSessions());
+		sortedSessions.sort((a, b) -> a.getNickname().compareToIgnoreCase(b.getNickname()));
 		
 		adapter = new PuttySessionAdapter(sortedSessions, existingHosts);
 		sessionList.setAdapter(adapter);
@@ -132,13 +129,13 @@ public class PuttyImportDialog extends DialogFragment {
 		List<HostBean> hosts = hostdb.getHosts(false);
 		
 		// Filter out sessions that are identical to existing hosts
-		List<PuttySession> filteredSessions = new ArrayList<>();
-		for (PuttySession session : parseResult.getValidSessions()) {
-			HostBean existingHost = findExistingHost(hosts, session.getSessionName());
+		List<HostBean> filteredSessions = new ArrayList<>();
+		for (HostBean session : parseResult.getValidSessions()) {
+			HostBean existingHost = findExistingHost(hosts, session.getNickname());
 			if (existingHost != null) {
 				// Compare if there are actual differences
 				if (hasSignificantDifferences(existingHost, session)) {
-					existingHosts.put(session.getSessionName(), true);
+					existingHosts.put(session.getNickname(), true);
 					filteredSessions.add(session);
 				}
 				// If no differences, don't add to filtered list (exclude from dialog)
@@ -162,7 +159,7 @@ public class PuttyImportDialog extends DialogFragment {
 		return null;
 	}
 	
-	private boolean hasSignificantDifferences(HostBean existingHost, PuttySession session) {
+	private boolean hasSignificantDifferences(HostBean existingHost, HostBean session) {
 		// Compare hostname
 		if (!existingHost.getHostname().equals(session.getHostname())) {
 			return true;
@@ -186,41 +183,15 @@ public class PuttyImportDialog extends DialogFragment {
 		}
 		
 		// Compare compression
-		if (existingHost.getCompression() != session.isCompression()) {
+		if (existingHost.getCompression() != session.getCompression()) {
 			return true;
 		}
 		
-		// Compare port forwards - get existing forwards for this host
-		HostDatabase hostdb = HostDatabase.get(getContext());
-		List<PortForwardBean> existingForwards = hostdb.getPortForwardsForHost(existingHost);
-		List<PortForward> sessionForwards = session.getPortForwards();
-		
-		if (existingForwards.size() != sessionForwards.size()) {
-			return true;
-		}
-		
-		// Compare each port forward (simplified comparison)
-		for (PortForward sessionForward : sessionForwards) {
-			boolean found = false;
-			for (PortForwardBean existingForward : existingForwards) {
-				if (portForwardsEqual(existingForward, sessionForward)) {
-					found = true;
-					break;
-				}
-			}
-			if (!found) {
-				return true;
-			}
-		}
+		// Note: Port forward comparison is not implemented since HostBean
+		// doesn't contain port forwards directly. This could be enhanced
+		// by parsing the port forwards from the original registry data.
 		
 		return false; // No significant differences found
-	}
-	
-	private boolean portForwardsEqual(PortForwardBean existing, PortForward session) {
-		return existing.getType().equals(session.getType()) &&
-			existing.getSourcePort() == session.getSourcePort() &&
-			Objects.equals(existing.getDestAddr(), session.getDestHost()) &&
-			existing.getDestPort() == session.getDestPort();
 	}
 	
 	private void showWarnings() {
@@ -247,7 +218,7 @@ public class PuttyImportDialog extends DialogFragment {
 	}
 	
 	private void onImportClicked(DialogInterface dialog, int which) {
-		List<PuttySession> selectedSessions = adapter.getSelectedSessions();
+		List<HostBean> selectedSessions = adapter.getSelectedSessions();
 		if (selectedSessions.isEmpty()) {
 			return;
 		}
@@ -275,11 +246,11 @@ public class PuttyImportDialog extends DialogFragment {
 	 * RecyclerView adapter for PuTTY sessions.
 	 */
 	private static class PuttySessionAdapter extends RecyclerView.Adapter<PuttySessionAdapter.SessionViewHolder> {
-		private List<PuttySession> sessions;
+		private List<HostBean> sessions;
 		private Map<String, Boolean> existingHosts;
 		private SparseBooleanArray selectedSessions;
 		
-		public PuttySessionAdapter(List<PuttySession> sessions, Map<String, Boolean> existingHosts) {
+		public PuttySessionAdapter(List<HostBean> sessions, Map<String, Boolean> existingHosts) {
 			this.sessions = sessions;
 			this.existingHosts = existingHosts;
 			this.selectedSessions = new SparseBooleanArray();
@@ -300,9 +271,9 @@ public class PuttyImportDialog extends DialogFragment {
 		
 		@Override
 		public void onBindViewHolder(@NonNull SessionViewHolder holder, int position) {
-			PuttySession session = sessions.get(position);
+			HostBean session = sessions.get(position);
 			
-			holder.sessionName.setText(session.getSessionName());
+			holder.sessionName.setText(session.getNickname());
 			
 			// Show connection details
 			StringBuilder details = new StringBuilder();
@@ -315,18 +286,12 @@ public class PuttyImportDialog extends DialogFragment {
 			}
 			holder.sessionDetails.setText(details.toString());
 			
-			// Show port forwards count
-			int forwardCount = session.getPortForwards().size();
-			if (forwardCount > 0) {
-				holder.portForwards.setText(
-					holder.itemView.getContext().getString(R.string.putty_import_port_forwards, forwardCount));
-				holder.portForwards.setVisibility(View.VISIBLE);
-			} else {
-				holder.portForwards.setVisibility(View.GONE);
-			}
+			// Show port forwards count - not available in HostBean
+			// Port forwards would need to be tracked separately
+			holder.portForwards.setVisibility(View.GONE);
 			
 			// Show if host already exists
-			boolean exists = existingHosts.containsKey(session.getSessionName());
+			boolean exists = existingHosts.containsKey(session.getNickname());
 			holder.sessionExists.setVisibility(exists ? View.VISIBLE : View.GONE);
 			
 			// Set checkbox state
@@ -354,8 +319,8 @@ public class PuttyImportDialog extends DialogFragment {
 			notifyDataSetChanged();
 		}
 		
-		public List<PuttySession> getSelectedSessions() {
-			List<PuttySession> selected = new ArrayList<>();
+		public List<HostBean> getSelectedSessions() {
+			List<HostBean> selected = new ArrayList<>();
 			for (int i = 0; i < sessions.size(); i++) {
 				if (selectedSessions.get(i, false)) {
 					selected.add(sessions.get(i));
