@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+/*
+ * ConnectBot: simple, powerful, open-source SSH client for Android
+ * Copyright 2007 Kenny Root, Jeffrey Sharkey
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+-->
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:orientation="vertical"
+	android:padding="16dp">
+
+	<TextView
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:text="@string/putty_import_title"
+		android:textAppearance="?android:attr/textAppearanceLarge"
+		android:layout_marginBottom="16dp" />
+
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal"
+		android:layout_marginBottom="8dp">
+
+		<Button
+			android:id="@+id/button_select_all"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:text="@string/putty_import_select_all"
+			android:layout_marginEnd="8dp"
+			style="?android:attr/buttonStyleSmall" />
+
+		<Button
+			android:id="@+id/button_deselect_all"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:text="@string/putty_import_deselect_all"
+			style="?android:attr/buttonStyleSmall" />
+
+	</LinearLayout>
+
+	<androidx.recyclerview.widget.RecyclerView
+		android:id="@+id/session_list"
+		android:layout_width="match_parent"
+		android:layout_height="0dp"
+		android:layout_weight="1"
+		android:maxHeight="300dp"
+		android:layout_marginBottom="16dp" />
+
+	<TextView
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:text="@string/putty_import_bind_address"
+		android:textAppearance="?android:attr/textAppearanceMedium"
+		android:layout_marginBottom="8dp" />
+
+	<RadioGroup
+		android:id="@+id/bind_address_group"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_marginBottom="16dp">
+
+		<RadioButton
+			android:id="@+id/bind_localhost"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="@string/putty_import_bind_localhost" />
+
+		<RadioButton
+			android:id="@+id/bind_all_interfaces"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="@string/putty_import_bind_all" />
+
+		<RadioButton
+			android:id="@+id/bind_hotspot"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="@string/putty_import_bind_hotspot"
+			android:checked="true" />
+
+	</RadioGroup>
+
+	<TextView
+		android:id="@+id/security_warning"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:text="@string/security_warning_network_exposure"
+		android:textColor="#ffcc00"
+		android:textAppearance="?android:attr/textAppearanceSmall"
+		android:layout_marginTop="4dp"
+		android:layout_marginBottom="8dp"
+		android:paddingStart="8dp"
+		android:paddingEnd="8dp"
+		android:background="@android:color/transparent"
+		android:visibility="gone" />
+
+	<TextView
+		android:id="@+id/warning_text"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:textColor="@android:color/holo_orange_dark"
+		android:textAppearance="?android:attr/textAppearanceSmall"
+		android:layout_marginBottom="16dp"
+		android:visibility="gone" />
+
+
+</LinearLayout>
