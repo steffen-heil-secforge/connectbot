@@ -94,6 +94,8 @@ public class HostListActivity extends AppCompatListActivity implements OnHostSta
 
 	private MenuItem disconnectall;
 
+	private MenuItem deleteall;
+
 	private SharedPreferences prefs = null;
 
 	protected boolean makingShortcut = false;
@@ -313,6 +315,7 @@ public class HostListActivity extends AppCompatListActivity implements OnHostSta
 		sortcolor.setVisible(!sortedByColor);
 		sortlast.setVisible(sortedByColor);
 		disconnectall.setEnabled(bound != null && bound.getBridges().size() > 0);
+		deleteall.setEnabled(hosts != null && hosts.size() > 0);
 
 		return true;
 	}
@@ -375,9 +378,9 @@ public class HostListActivity extends AppCompatListActivity implements OnHostSta
 			}
 		});
 
-		MenuItem deleteAll = menu.add(R.string.list_menu_delete_all_hosts);
-		deleteAll.setIcon(android.R.drawable.ic_menu_delete);
-		deleteAll.setOnMenuItemClickListener(new OnMenuItemClickListener() {
+		deleteall = menu.add(R.string.list_menu_delete_all_hosts);
+		deleteall.setIcon(android.R.drawable.ic_menu_delete);
+		deleteall.setOnMenuItemClickListener(new OnMenuItemClickListener() {
 			@Override
 			public boolean onMenuItemClick(MenuItem item) {
 				confirmDeleteAllHosts();
