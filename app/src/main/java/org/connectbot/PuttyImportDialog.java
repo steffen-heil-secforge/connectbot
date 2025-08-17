@@ -226,7 +226,7 @@ public class PuttyImportDialog extends DialogFragment {
 		String bindAddress = getSelectedBindAddress();
 		
 		// Perform import in background
-		new PuttyImportTask(getContext(), selectedSessions, bindAddress, 
+		new PuttyImportTask(getContext(), selectedSessions, parseResult.getPortForwards(), bindAddress, 
 			(HostListActivity) getActivity()).execute();
 	}
 	

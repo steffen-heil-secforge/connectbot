@@ -24,7 +24,9 @@ import android.util.Log;
 import android.widget.Toast;
 
 import org.connectbot.bean.HostBean;
+import org.connectbot.bean.PortForwardBean;
 import org.connectbot.util.HostDatabase;
+import org.connectbot.util.PuttyRegistryParser;
 
 import java.lang.ref.WeakReference;
 import java.util.HashMap;
@@ -42,6 +44,7 @@ public class PuttyImportTask extends AsyncTask<Void, Void, PuttyImportTask.Impor
 	private WeakReference<Context> contextRef;
 	private WeakReference<HostListActivity> activityRef;
 	private List<HostBean> sessions;
+	private Map<String, List<PortForwardBean>> portForwards;
 	private String bindAddress;
 	private ProgressDialog progressDialog;
 
@@ -52,10 +55,11 @@ public class PuttyImportTask extends AsyncTask<Void, Void, PuttyImportTask.Impor
 		public String errorMessage;
 	}
 
-	public PuttyImportTask(Context context, List<HostBean> sessions, String bindAddress, HostListActivity activity) {
+	public PuttyImportTask(Context context, List<HostBean> sessions, Map<String, List<PortForwardBean>> portForwards, String bindAddress, HostListActivity activity) {
 		this.contextRef = new WeakReference<>(context);
 		this.activityRef = new WeakReference<>(activity);
 		this.sessions = sessions;
+		this.portForwards = portForwards;
 		this.bindAddress = bindAddress;
 	}
 
@@ -169,9 +173,48 @@ public class PuttyImportTask extends AsyncTask<Void, Void, PuttyImportTask.Impor
 			return false;
 		}
 
-		// Note: Port forwards are not available in HostBean directly
-		// This would need to be handled separately by parsing the original registry data
+		// Import port forwards for this session
+		importPortForwards(hostdb, hostBean);
 
 		return true;
+	}
+
+	/**
+	 * Import port forwards for a session.
+	 */
+	private void importPortForwards(HostDatabase hostdb, HostBean hostBean) {
+		if (portForwards == null || hostBean == null) {
+			return;
+		}
+
+		List<PortForwardBean> sessionPortForwards = portForwards.get(hostBean.getNickname());
+		if (sessionPortForwards == null || sessionPortForwards.isEmpty()) {
+			return;
+		}
+
+		try {
+			for (PortForwardBean pf : sessionPortForwards) {
+				// Create new PortForwardBean with correct host ID
+				String finalBindAddress = (bindAddress != null && !bindAddress.isEmpty()) 
+					? bindAddress : pf.getBindAddress();
+				
+				PortForwardBean newPf = new PortForwardBean(
+					-1, // New ID
+					hostBean.getId(), // Correct host ID
+					pf.getNickname(),
+					pf.getType(),
+					pf.getSourcePort(),
+					pf.getDestAddr(),
+					pf.getDestPort(),
+					finalBindAddress
+				);
+
+				// Save the port forward
+				hostdb.savePortForward(newPf);
+				Log.d(TAG, "Imported port forward: " + newPf.getNickname() + " for host: " + hostBean.getNickname());
+			}
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to import port forwards for host: " + hostBean.getNickname(), e);
+		}
 	}
 }
