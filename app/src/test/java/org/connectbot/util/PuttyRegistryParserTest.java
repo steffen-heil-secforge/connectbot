@@ -611,4 +611,27 @@ public class PuttyRegistryParserTest {
 		assertSuccessfulParse(result2, 1);
 		assertNull(result2.getValidSessions().get(0).getUsername()); // Should be ignored
 	}
+
+	@Test
+	public void testParseComplexPortForwardRule() throws Exception {
+		// Test the specific failing case: L1022=192.168.168.128:22,L1023=192.168.168.128:5900,L64734=127.0.0.1:64734
+		PuttyRegistryParser parser = new PuttyRegistryParser();
+		List<PortForwardBean> portForwards = parser.parsePortForwards(1L, "L1022=192.168.168.128:22,L1023=192.168.168.128:5900,L64734=127.0.0.1:64734");
+		
+		// Should parse 3 port forwards
+		assertEquals("Should parse 3 port forwards", 3, portForwards.size());
+		
+		// Check each port forward
+		PortForwardBean pf1 = findPortForwardByTypeAndPort(portForwards, "Local", 1022);
+		assertNotNull("Port forward 1022 should exist", pf1);
+		assertValidPortForward(pf1, "Local", 1022, "192.168.168.128", 22);
+		
+		PortForwardBean pf2 = findPortForwardByTypeAndPort(portForwards, "Local", 1023);
+		assertNotNull("Port forward 1023 should exist", pf2);
+		assertValidPortForward(pf2, "Local", 1023, "192.168.168.128", 5900);
+		
+		PortForwardBean pf3 = findPortForwardByTypeAndPort(portForwards, "Local", 64734);
+		assertNotNull("Port forward 64734 should exist", pf3);
+		assertValidPortForward(pf3, "Local", 64734, "127.0.0.1", 64734);
+	}
 }
