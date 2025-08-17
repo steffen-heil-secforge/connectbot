@@ -69,7 +69,7 @@ import org.connectbot.transport.TransportFactory;
 import org.connectbot.util.HostDatabase;
 import org.connectbot.util.NetworkUtils;
 import org.connectbot.util.PreferenceConstants;
-import org.connectbot.util.PuttyRegistryParser;
+import org.connectbot.util.PuttyImportHandler;
 
 import java.util.List;
 
@@ -179,7 +179,9 @@ public class HostListActivity extends AppCompatListActivity implements OnHostSta
 			this.updateList();
 		} else if (requestCode == REQUEST_IMPORT_PUTTY && resultCode == RESULT_OK) {
 			if (data != null && data.getData() != null) {
-				handlePuttyImportFile(data.getData());
+				PuttyImportHandler handler = new PuttyImportHandler(this);
+				handler.handlePuttyImportFile(data.getData(), getSupportFragmentManager(), 
+					this::showImportError);
 			}
 		}
 	}
@@ -902,132 +904,6 @@ public class HostListActivity extends AppCompatListActivity implements OnHostSta
 		updateList();
 	}
 	
-	private int getImportableSessionsCount(PuttyRegistryParser.ParseResult result) {
-		int importableCount = 0;
-		HostDatabase hostDatabase = HostDatabase.get(this);
-		List<HostBean> existingHosts = hostDatabase.getHosts(false);
-		
-		for (HostBean session : result.getValidSessions()) {
-			HostBean existingHost = findExistingHost(existingHosts, session.getNickname());
-			if (existingHost == null || hasSignificantDifferences(existingHost, session)) {
-				importableCount++;
-			}
-		}
-		
-		return importableCount;
-	}
-	
-	private HostBean findExistingHost(List<HostBean> hosts, String nickname) {
-		for (HostBean host : hosts) {
-			if (host.getNickname().equals(nickname)) {
-				return host;
-			}
-		}
-		return null;
-	}
-	
-	private boolean hasSignificantDifferences(HostBean existingHost, HostBean session) {
-		// Compare hostname
-		if (!existingHost.getHostname().equals(session.getHostname())) {
-			return true;
-		}
-		
-		// Compare port
-		if (existingHost.getPort() != session.getPort()) {
-			return true;
-		}
-		
-		// Compare username
-		String existingUsername = existingHost.getUsername();
-		String sessionUsername = session.getUsername();
-		if (!java.util.Objects.equals(existingUsername, sessionUsername)) {
-			return true;
-		}
-		
-		// Compare protocol
-		if (!existingHost.getProtocol().equals(session.getProtocol())) {
-			return true;
-		}
-		
-		// Compare compression
-		if (existingHost.getCompression() != session.getCompression()) {
-			return true;
-		}
-		
-		// For simplicity, skip detailed port forward comparison here
-		// The PuttyImportDialog will do the full comparison
-		return false;
-	}
-	
-	/**
-	 * Handle selected PuTTY registry file.
-	 */
-	private void handlePuttyImportFile(Uri fileUri) {
-		try {
-			// Get file size
-			long fileSize = 0;
-			try {
-				android.database.Cursor cursor = getContentResolver().query(
-					fileUri, null, null, null, null);
-				if (cursor != null) {
-					int sizeIndex = cursor.getColumnIndex(android.provider.OpenableColumns.SIZE);
-					if (sizeIndex != -1 && cursor.moveToFirst()) {
-						fileSize = cursor.getLong(sizeIndex);
-					}
-					cursor.close();
-				}
-			} catch (Exception e) {
-				// Ignore, we'll check during parsing
-			}
-			
-			// Parse the file
-			java.io.InputStream inputStream = getContentResolver().openInputStream(fileUri);
-			if (inputStream == null) {
-				showImportError(getString(R.string.putty_import_error_invalid_file));
-				return;
-			}
-			
-			PuttyRegistryParser parser = new PuttyRegistryParser();
-			PuttyRegistryParser.ParseResult result = parser.parseRegistryFile(inputStream, fileSize);
-			inputStream.close();
-			
-			// Check for errors
-			if (!result.getErrors().isEmpty()) {
-				String error = result.getErrors().get(0);
-				if (error.contains("too large")) {
-					showImportError(getString(R.string.putty_import_error_file_too_large));
-				} else if (error.contains("encoding")) {
-					showImportError(getString(R.string.putty_import_error_encoding));
-				} else if (error.contains("no sessions") || error.contains("No PuTTY")) {
-					showImportError(getString(R.string.putty_import_error_no_sessions));
-				} else {
-					showImportError(getString(R.string.putty_import_error_invalid_file));
-				}
-				return;
-			}
-			
-			// Check if there are any sessions that need import/update
-			if (result.getValidSessions().isEmpty()) {
-				showImportError(getString(R.string.putty_import_no_sessions_to_import));
-				return;
-			}
-			
-			// Perform filtering check to see if any sessions actually need import
-			int importableCount = getImportableSessionsCount(result);
-			if (importableCount == 0) {
-				showImportError(getString(R.string.putty_import_all_sessions_exist));
-				return;
-			}
-			
-			// Show import dialog
-			PuttyImportDialog dialog = PuttyImportDialog.newInstance(result);
-			dialog.show(getSupportFragmentManager(), "putty_import");
-			
-		} catch (Exception e) {
-			Log.e(TAG, "Error handling PuTTY import file", e);
-			showImportError(getString(R.string.putty_import_error_generic));
-		}
-	}
 	
 	/**
 	 * Show import error dialog.
