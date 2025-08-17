@@ -482,6 +482,22 @@ public class PuttyRegistryParser {
 
 
 	/**
+	 * Convert human-readable type string to database constant.
+	 */
+	private String convertTypeToDbConstant(String typeStr) {
+		switch (typeStr) {
+			case "Local":
+				return HostDatabase.PORTFORWARD_LOCAL;
+			case "Remote":
+				return HostDatabase.PORTFORWARD_REMOTE;
+			case "Dynamic (SOCKS)":
+				return HostDatabase.PORTFORWARD_DYNAMIC5;
+			default:
+				return HostDatabase.PORTFORWARD_LOCAL; // Default fallback
+		}
+	}
+
+	/**
 	 * Parse a single port forward entry.
 	 */
 	private PortForwardBean parsePortForward(long hostId, String forward) {
@@ -587,7 +603,8 @@ public class PuttyRegistryParser {
 
 		if (isValidPort(sourcePort)) {
 			String bindAddress = validateAndNormalizeBindAddress(bindIP, ipv6Preferred);
-			return new PortForwardBean(-1, hostId, "Dynamic SOCKS " + sourcePort, typeStr, sourcePort, null, 0, bindAddress);
+			String dbType = convertTypeToDbConstant(typeStr);
+			return new PortForwardBean(-1, hostId, "Dynamic SOCKS " + sourcePort, dbType, sourcePort, null, 0, bindAddress);
 		}
 
 		return null;
@@ -639,7 +656,8 @@ public class PuttyRegistryParser {
 		if (isValidHostname(destHost) && isValidPort(destPort)) {
 			String bindAddress = validateAndNormalizeBindAddress(bindIP, ipv6Preferred);
 			String nickname = typeStr + " " + sourcePort + " -> " + destHost + ":" + destPort;
-			return new PortForwardBean(-1, hostId, nickname, typeStr, sourcePort, destHost, destPort, bindAddress);
+			String dbType = convertTypeToDbConstant(typeStr);
+			return new PortForwardBean(-1, hostId, nickname, dbType, sourcePort, destHost, destPort, bindAddress);
 		}
 
 		return null;
