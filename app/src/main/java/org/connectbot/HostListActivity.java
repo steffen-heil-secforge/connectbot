@@ -69,6 +69,7 @@ import org.connectbot.transport.TransportFactory;
 import org.connectbot.util.HostDatabase;
 import org.connectbot.util.NetworkUtils;
 import org.connectbot.util.PreferenceConstants;
+import org.connectbot.util.PuttyRegistryParser;
 
 import java.util.List;
 
@@ -901,7 +902,7 @@ public class HostListActivity extends AppCompatListActivity implements OnHostSta
 		updateList();
 	}
 	
-	private int getImportableSessionsCount(org.connectbot.util.PuttyRegistryParser.ParseResult result) {
+	private int getImportableSessionsCount(PuttyRegistryParser.ParseResult result) {
 		int importableCount = 0;
 		HostDatabase hostDatabase = HostDatabase.get(this);
 		List<HostBean> existingHosts = hostDatabase.getHosts(false);
@@ -986,8 +987,8 @@ public class HostListActivity extends AppCompatListActivity implements OnHostSta
 				return;
 			}
 			
-			org.connectbot.util.PuttyRegistryParser parser = new org.connectbot.util.PuttyRegistryParser();
-			org.connectbot.util.PuttyRegistryParser.ParseResult result = parser.parseRegistryFile(inputStream, fileSize);
+			PuttyRegistryParser parser = new PuttyRegistryParser();
+			PuttyRegistryParser.ParseResult result = parser.parseRegistryFile(inputStream, fileSize);
 			inputStream.close();
 			
 			// Check for errors
