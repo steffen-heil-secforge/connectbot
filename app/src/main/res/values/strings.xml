@@ -454,7 +454,16 @@
 	<!-- Selection choice to sort hosts by nickname. -->
 	<string name="list_menu_sortname">"Sort by name"</string>
 	<string name="list_menu_disconnect">"Disconnect All"</string>
+	<string name="list_menu_import_putty">"Import PuTTY hosts"</string>
+	<string name="list_menu_delete_all_hosts">"Delete all hosts"</string>
 	<string name="list_menu_settings">"Settings"</string>
+
+	<string name="delete_all_hosts_title">"Delete All Hosts"</string>
+	<string name="delete_all_hosts_message">"Are you sure you want to delete all %d hosts? This action cannot be undone."</string>
+	<string name="delete_all_hosts_confirm">"Delete All"</string>
+	
+	<string name="putty_import_no_sessions_to_import">"No valid sessions found in the file."</string>
+	<string name="putty_import_all_sessions_exist">"All sessions in the file already exist with identical configuration."</string>
 
 	<string name="list_host_disconnect">"Disconnect"</string>
 	<string name="list_host_edit">"Edit host"</string>
@@ -695,4 +704,23 @@
 	<string name="notification_requirement_explanation">Notification permission is required to display running sessions in the background</string>
 	<string name="continue_anyway">Continue without</string>
 	<string name="allow">Allow</string>
+
+	<!-- PuTTY import feature strings -->
+	<string name="putty_import_title">"Import PuTTY hosts"</string>
+	<string name="putty_import_select_all">"Select All"</string>
+	<string name="putty_import_deselect_all">"Deselect All"</string>
+	<string name="putty_import_bind_address">"Port forward bind address:"</string>
+	<string name="putty_import_bind_localhost">"Localhost"</string>
+	<string name="putty_import_bind_all">"All interfaces"</string>
+	<string name="putty_import_bind_hotspot">"WiFi Hotspot"</string>
+	<string name="putty_import_session_exists">"(will update existing)"</string>
+	<string name="putty_import_port_forwards">"Port forwards: %d"</string>
+	<string name="putty_import_error_title">"Import Error"</string>
+	<string name="putty_import_error_file_too_large">"File too large (max 1MB)"</string>
+	<string name="putty_import_error_invalid_file">"Invalid or corrupted registry file"</string>
+	<string name="putty_import_error_no_sessions">"No PuTTY SSH sessions found"</string>
+	<string name="putty_import_error_encoding">"File encoding error"</string>
+	<string name="putty_import_error_generic">"Import failed unexpectedly"</string>
+	<string name="putty_import_success">"Successfully imported %d sessions"</string>
+	<string name="putty_import_partial_success" formatted="false">"Imported %d sessions, skipped %d invalid"</string>
 </resources>
