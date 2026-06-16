@@ -23,10 +23,13 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
@@ -34,7 +37,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -43,6 +48,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringArrayResource
@@ -51,6 +57,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import org.connectbot.R
 import org.connectbot.util.HostConstants
+import org.connectbot.util.NetworkUtils
 
 enum class SourceAddressOption(val sshValue: String, @StringRes val labelRes: Int) {
     LOCALHOST("localhost", R.string.portforward_source_addr_localhost),
@@ -81,6 +88,16 @@ internal object PortForwardEditorTestTags {
     const val SOURCE_PORT_FIELD = "port_forward_source_port_field"
     const val DESTINATION_FIELD = "port_forward_destination_field"
     const val SPECIFIC_SOURCE_ADDRESS_FIELD = "port_forward_specific_source_address_field"
+}
+
+enum class BindAddressOption(val value: String, @StringRes val labelRes: Int) {
+    LOCALHOST(NetworkUtils.BIND_LOCALHOST, R.string.bind_localhost),
+    ALL_INTERFACES(NetworkUtils.BIND_ALL_INTERFACES, R.string.bind_all_interfaces),
+    HOTSPOT(NetworkUtils.BIND_HOTSPOT, R.string.bind_hotspot);
+
+    companion object {
+        fun fromValue(value: String) = entries.firstOrNull { it.value == value } ?: LOCALHOST
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -116,6 +133,12 @@ fun PortForwardEditorDialog(
     var specificAddress by remember {
         mutableStateOf(
             if (initialSourceOption == SourceAddressOption.SPECIFIC) initialSourceAddr ?: "" else "",
+        )
+    }
+
+    var bindAddress by remember {
+        mutableStateOf(
+            BindAddressOption.fromValue(initialSourceAddr ?: NetworkUtils.BIND_LOCALHOST),
         )
     }
 
@@ -268,6 +291,44 @@ fun PortForwardEditorDialog(
                     },
                 )
 
+                val isLocalOrDynamic = !isRemote
+
+                if (isLocalOrDynamic) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.prompt_bind_address),
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                    Column {
+                        BindAddressOption.entries.forEach { option ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { bindAddress = option }
+                                    .padding(vertical = 2.dp),
+                            ) {
+                                RadioButton(
+                                    selected = bindAddress == option,
+                                    onClick = { bindAddress = option },
+                                )
+                                Text(
+                                    text = stringResource(option.labelRes),
+                                    modifier = Modifier.padding(start = 4.dp),
+                                )
+                            }
+                        }
+                    }
+                    if (bindAddress == BindAddressOption.ALL_INTERFACES || bindAddress == BindAddressOption.HOTSPOT) {
+                        Text(
+                            text = stringResource(R.string.security_warning_network_exposure),
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 4.dp, start = 4.dp),
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(8.dp))
 
                 OutlinedTextField(
@@ -300,7 +361,7 @@ fun PortForwardEditorDialog(
                             sourceAddressOption.sshValue
                         }
                     } else {
-                        "localhost"
+                        bindAddress.value
                     }
                     val finalDestination = if (needsDestination) {
                         destination.ifEmpty { "localhost:80" }
