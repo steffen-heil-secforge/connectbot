@@ -1089,7 +1089,9 @@ class SSH :
 
                 portForward.setIdentifier(lpf)
                 portForward.setEnabled(true)
-                // TODO: Task 4 will add manager?.updateAccessPointNotification()
+                if (portForward.sourceAddr == NetworkUtils.BIND_HOTSPOT) {
+                    manager?.updateAccessPointNotification()
+                }
                 true
             }
 
@@ -1121,7 +1123,9 @@ class SSH :
 
                 portForward.setIdentifier(dpf)
                 portForward.setEnabled(true)
-                // TODO: Task 4 will add manager?.updateAccessPointNotification()
+                if (portForward.sourceAddr == NetworkUtils.BIND_HOTSPOT) {
+                    manager?.updateAccessPointNotification()
+                }
                 true
             }
 
@@ -1154,6 +1158,9 @@ class SSH :
 
                 portForward.setEnabled(false)
                 lpf.close()
+                if (portForward.sourceAddr == NetworkUtils.BIND_HOTSPOT) {
+                    manager?.updateAccessPointNotification()
+                }
                 true
             }
 
@@ -1179,6 +1186,9 @@ class SSH :
 
                 portForward.setEnabled(false)
                 dpf.close()
+                if (portForward.sourceAddr == NetworkUtils.BIND_HOTSPOT) {
+                    manager?.updateAccessPointNotification()
+                }
                 true
             }
 
