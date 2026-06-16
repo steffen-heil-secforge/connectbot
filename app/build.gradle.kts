@@ -531,6 +531,7 @@ kotlin {
 
 tasks.withType<Test>().configureEach {
     jvmArgs("--add-opens", "java.base/java.lang=ALL-UNNAMED")
+    jvmArgs("--add-opens", "java.base/java.net=ALL-UNNAMED")
     // Robolectric's cached Android resources use a heap separate from the Gradle daemon.
     maxHeapSize = "2g"
     maxParallelForks = 1
