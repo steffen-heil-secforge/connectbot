@@ -35,6 +35,7 @@ object NavDestinations {
     const val EULA = "eula"
     const val HINTS = "hints"
     const val CONTACT = "contact"
+    const val PUTTY_IMPORT = "putty_import"
 }
 
 object NavArgs {
