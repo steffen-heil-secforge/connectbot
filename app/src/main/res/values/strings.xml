@@ -1430,4 +1430,15 @@
 	<string name="bind_hotspot">WiFi hotspot only</string>
 	<string name="security_warning_network_exposure">This will expose the forwarded port to other devices on the network</string>
 	<string name="prompt_bind_address">Bind to:</string>
+
+	<!-- PuTTY import screen -->
+	<string name="list_menu_import_putty">Import PuTTY hosts</string>
+	<string name="putty_import_choose_file">Choose .reg file</string>
+	<string name="putty_import_select_all">Select All</string>
+	<string name="putty_import_deselect_all">Deselect All</string>
+	<string name="putty_import_session_exists">(will update existing)</string>
+	<string name="putty_import_port_forwards">Port forwards: %d</string>
+	<string name="putty_import_import">Import Selected</string>
+	<string name="putty_import_truncated">File has more than 100 sessions — only first 100 shown</string>
+	<string name="putty_import_bind_address">Port forward bind address:</string>
 </resources>
