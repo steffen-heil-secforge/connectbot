@@ -17,10 +17,12 @@
 
 package org.connectbot.ui.screens.portforwardlist
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,6 +36,7 @@ import org.connectbot.di.CoroutineDispatchers
 import org.connectbot.service.TerminalBridge
 import org.connectbot.service.TerminalManager
 import org.connectbot.util.HostConstants
+import org.connectbot.util.NetworkUtils
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -42,6 +45,7 @@ data class PortForwardListUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val hasLiveConnection: Boolean = false,
+    val hotspotIp: String? = null,   // null = hotspot off
 )
 
 @HiltViewModel
@@ -49,6 +53,7 @@ class PortForwardListViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: HostRepository,
     private val dispatchers: CoroutineDispatchers,
+    @ApplicationContext private val applicationContext: Context,
 ) : ViewModel() {
     private val hostId: Long = savedStateHandle.get<Long>("hostId") ?: -1L
     private val _terminalManager = MutableStateFlow<TerminalManager?>(null)
@@ -94,11 +99,13 @@ class PortForwardListViewModel @Inject constructor(
                         copy
                     }
 
+                    val apIP = NetworkUtils.getAccessPointIP(applicationContext)
                     PortForwardListUiState(
                         portForwards = updatedPortForwards,
                         isLoading = false,
                         error = null,
                         hasLiveConnection = hasLiveConnection,
+                        hotspotIp = apIP,
                     )
                 } catch (e: Exception) {
                     PortForwardListUiState(
