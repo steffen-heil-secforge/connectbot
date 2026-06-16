@@ -123,6 +123,7 @@ fun HostListScreen(
     onNavigateToProfiles: () -> Unit,
     onNavigateToHelp: () -> Unit,
     modifier: Modifier = Modifier,
+    onImportFromPuTTY: () -> Unit = {},
     makingShortcut: Boolean = false,
     onSelectShortcut: (Host, String?, IconStyle) -> Unit = { _, _, _ -> },
     viewModel: HostListViewModel = hiltViewModel(),
@@ -274,6 +275,7 @@ fun HostListScreen(
         onExportHosts = viewModel::exportHosts,
         // Some document providers label JSON exports as text/plain or application/octet-stream.
         onImportHosts = { importLauncher.launch(arrayOf("*/*")) },
+        onImportFromPuTTY = onImportFromPuTTY,
         modifier = modifier,
     )
 }
@@ -300,6 +302,7 @@ fun HostListScreenContent(
     onSelectShortcut: (Host) -> Unit = {},
     onExportHosts: () -> Unit = {},
     onImportHosts: () -> Unit = {},
+    onImportFromPuTTY: () -> Unit = {},
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showDisconnectAllDialog by remember { mutableStateOf(false) }
@@ -379,6 +382,13 @@ fun HostListScreenContent(
                                 onClick = {
                                     showMenu = false
                                     onImportHosts()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.list_menu_import_putty)) },
+                                onClick = {
+                                    showMenu = false
+                                    onImportFromPuTTY()
                                 },
                             )
                             DropdownMenuItem(
