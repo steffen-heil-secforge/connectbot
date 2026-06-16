@@ -57,6 +57,7 @@ import org.connectbot.service.requestBooleanPrompt
 import org.connectbot.service.requestHostKeyFingerprintPrompt
 import org.connectbot.service.requestStringPrompt
 import org.connectbot.util.HostConstants
+import org.connectbot.util.NetworkUtils
 import org.connectbot.util.PubkeyUtils
 import org.connectbot.util.SshKeyType
 import org.connectbot.util.UrlUtils
@@ -65,6 +66,7 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.InetAddress
+import java.net.UnknownHostException
 import java.net.InetSocketAddress
 import java.net.NoRouteToHostException
 import java.nio.charset.StandardCharsets
@@ -1120,6 +1122,17 @@ class SSH :
         return portForwards.remove(portForward)
     }
 
+    private fun resolveLocalBindAddress(bindAddress: String): InetAddress? {
+        val apIP = manager?.let { NetworkUtils.getAccessPointIP(it) }
+        val resolved = NetworkUtils.resolveBindAddress(bindAddress, apIP) ?: return null
+        return try {
+            InetAddress.getByName(resolved)
+        } catch (e: UnknownHostException) {
+            Timber.e(e, "Failed to resolve bind address: $bindAddress")
+            null
+        }
+    }
+
     override fun enablePortForward(portForward: PortForward): Boolean {
         if (!portForwards.contains(portForward)) {
             Timber.e("Attempt to enable port forward not in list")
@@ -1132,9 +1145,13 @@ class SSH :
 
         return when (portForward.type) {
             HostConstants.PORTFORWARD_LOCAL -> {
+                val bindAddr = resolveLocalBindAddress(portForward.sourceAddr) ?: run {
+                    Timber.w("Hotspot unavailable, cannot bind local forward: ${portForward.nickname}")
+                    return false
+                }
                 val lpf: LocalPortForwarder? = try {
                     connection?.createLocalPortForwarder(
-                        InetSocketAddress(InetAddress.getLocalHost(), portForward.sourcePort),
+                        InetSocketAddress(bindAddr, portForward.sourcePort),
                         portForward.destAddr,
                         portForward.destPort,
                     )
@@ -1150,6 +1167,7 @@ class SSH :
 
                 portForward.setIdentifier(lpf)
                 portForward.setEnabled(true)
+                // TODO: Task 4 will add manager?.updateAccessPointNotification()
                 true
             }
 
@@ -1166,9 +1184,13 @@ class SSH :
             }
 
             HostConstants.PORTFORWARD_DYNAMIC5 -> {
+                val bindAddr = resolveLocalBindAddress(portForward.sourceAddr) ?: run {
+                    Timber.w("Hotspot unavailable, cannot bind dynamic forward: ${portForward.nickname}")
+                    return false
+                }
                 val dpf: DynamicPortForwarder? = try {
                     connection?.createDynamicPortForwarder(
-                        InetSocketAddress(InetAddress.getLocalHost(), portForward.sourcePort),
+                        InetSocketAddress(bindAddr, portForward.sourcePort),
                     )
                 } catch (e: Exception) {
                     Timber.e(e, "Could not create dynamic port forward")
@@ -1177,6 +1199,7 @@ class SSH :
 
                 portForward.setIdentifier(dpf)
                 portForward.setEnabled(true)
+                // TODO: Task 4 will add manager?.updateAccessPointNotification()
                 true
             }
 
