@@ -49,7 +49,7 @@ data class PuttyImportUiState(
     val bindAddress: String = NetworkUtils.BIND_LOCALHOST,
     val isLoading: Boolean = false,
     val isParsed: Boolean = false,
-    val importResult: String? = null,
+    val importResult: Boolean = false,
     val error: String? = null,
     val truncated: Boolean = false,
 )
@@ -155,10 +155,12 @@ class PuttyImportViewModel @Inject constructor(
         val selectedSessions = currentState.sessions.filter { it.selected }
         if (selectedSessions.isEmpty()) return
 
-        viewModelScope.launch {
-            val bindAddress = currentState.bindAddress
+        _uiState.update { it.copy(isLoading = true, error = null) }
 
-            withContext(dispatchers.io) {
+        viewModelScope.launch(dispatchers.io) {
+            try {
+                val bindAddress = currentState.bindAddress
+
                 for (sessionItem in selectedSessions) {
                     val parsedHost = sessionItem.host
 
@@ -192,16 +194,13 @@ class PuttyImportViewModel @Inject constructor(
                         )
                     }
                 }
-            }
 
-            val count = selectedSessions.size
-            val message = if (count == 1) {
-                "Imported 1 session"
-            } else {
-                "Imported $count sessions"
+                _uiState.update { it.copy(isLoading = false, importResult = true) }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(isLoading = false, error = e.localizedMessage ?: "Import failed")
+                }
             }
-
-            _uiState.update { it.copy(importResult = message) }
         }
     }
 }
