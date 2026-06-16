@@ -66,6 +66,8 @@ class ConnectionNotifier @Inject constructor(dispatchers: CoroutineDispatchers) 
     private val muted = mutableSetOf<String>()
     private var foreground = false
     private var restored = false
+    private var accessPointIP: String? = null
+    private var hasAccessPointForwards = false
 
     init {
         CoroutineScope(SupervisorJob() + dispatchers.io).launch {
@@ -176,8 +178,15 @@ class ConnectionNotifier @Inject constructor(dispatchers: CoroutineDispatchers) 
         context.getString(it.descriptionResource())
     } ?: context.getString(R.string.notification_bell)
 
+    private fun accessPointText(context: Context): String? {
+        if (!hasAccessPointForwards) return null
+        return accessPointIP?.let { context.getString(R.string.notification_access_point_text, it) }
+            ?: context.getString(R.string.notification_ap_disabled_text)
+    }
+
     private fun summary(context: Context): Notification {
         val title = summaryText(context)
+        val accessPoint = accessPointText(context)
         val connected = sessions.filter { it.connected }.sortedBy { it.host.nickname }
         val serverNames = connected.take(3).joinToString(", ") { it.host.nickname }
         val text = if (connected.size > 3) {
@@ -191,6 +200,7 @@ class ConnectionNotifier @Inject constructor(dispatchers: CoroutineDispatchers) 
             serverNames.takeIf { it.isNotEmpty() }
         }
         val style = NotificationCompat.InboxStyle().setBigContentTitle(title)
+        accessPoint?.let { style.addLine(it) }
         val rows = sessions.associateBy { it.id }.toMutableMap()
         notices.values.forEach { rows.putIfAbsent(it.session.id, it.session) }
         rows.values.sortedWith(
@@ -223,7 +233,7 @@ class ConnectionNotifier @Inject constructor(dispatchers: CoroutineDispatchers) 
         }
         val result = builder(context, if (notices.isEmpty()) SESSION_CHANNEL else ATTENTION_CHANNEL)
             .setContentTitle(title)
-            .setContentText(text)
+            .setContentText(accessPoint ?: text)
             .setStyle(style)
             .setOngoing(foreground)
             .setWhen(0)
@@ -354,6 +364,14 @@ class ConnectionNotifier @Inject constructor(dispatchers: CoroutineDispatchers) 
         } else {
             context.startForeground(ONLINE_NOTIFICATION, notification)
         }
+    }
+
+    /** Shows the WiFi hotspot state in the summary while hotspot-bound port forwards exist. */
+    fun updateAccessPointState(context: Context, apIP: String?, hasApForwards: Boolean) = enqueue(context) {
+        if (accessPointIP == apIP && hasAccessPointForwards == hasApForwards) return@enqueue
+        accessPointIP = apIP
+        hasAccessPointForwards = hasApForwards
+        refresh(context)
     }
 
     fun hideRunningNotification(context: Service) = enqueue(context) {

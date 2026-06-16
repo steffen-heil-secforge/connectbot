@@ -333,7 +333,7 @@ class TerminalManager :
 
         scope.launch(dispatchers.main) { CryptoProviderState.ensureLoaded(this@TerminalManager, dispatchers) }
 
-        apStateTimer = Timer("apStateTimer", /* isDaemon= */ true)
+        apStateTimer = Timer("apStateTimer", true)
         accessPointReceiver = AccessPointReceiver(this)
         updateAccessPointMonitoring()
     }
@@ -1143,7 +1143,9 @@ class TerminalManager :
 
     /** Called from SSH.kt when an AP-bound forward is enabled or disabled. */
     fun updateAccessPointNotification() {
-        connectionNotifier.showRunningNotification(this)  // Task 5 will add AP-aware overload
+        val apIP = NetworkUtils.getAccessPointIP(this)
+        val hasApForwards = hasActiveAccessPointForwards()
+        connectionNotifier.updateAccessPointState(this, apIP, hasApForwards)
     }
 
     /** Called by AccessPointReceiver and the polling timer. */
@@ -1159,9 +1161,15 @@ class TerminalManager :
     private fun updateAccessPointMonitoring() {
         val shouldMonitor = synchronized(_bridges) { _bridges.isNotEmpty() } && hasActiveAccessPointForwards()
         if (shouldMonitor && !apMonitoringActive) {
-            apStateTimer?.schedule(object : TimerTask() {
-                override fun run() { checkAccessPointStateChange() }
-            }, 0L, 10_000L)
+            apStateTimer?.schedule(
+                object : TimerTask() {
+                    override fun run() {
+                        checkAccessPointStateChange()
+                    }
+                },
+                0L,
+                10_000L,
+            )
             apMonitoringActive = true
         } else if (!shouldMonitor && apMonitoringActive) {
             apStateTimer?.cancel()
@@ -1170,12 +1178,11 @@ class TerminalManager :
         }
     }
 
-    private fun hasActiveAccessPointForwards(): Boolean =
-        synchronized(_bridges) {
-            _bridges.any { bridge ->
-                bridge.portForwards.any { it.sourceAddr == NetworkUtils.BIND_HOTSPOT }
-            }
+    private fun hasActiveAccessPointForwards(): Boolean = synchronized(_bridges) {
+        _bridges.any { bridge ->
+            bridge.portForwards.any { it.sourceAddr == NetworkUtils.BIND_HOTSPOT }
         }
+    }
 
     private fun retryFailedAccessPointForwards() {
         val bridgesCopy = synchronized(_bridges) { _bridges.toList() }

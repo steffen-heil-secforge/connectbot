@@ -2489,4 +2489,20 @@
     <string name="zmodem_progress_total">%1$s: %2$d / %3$d bytes</string>
     <!-- Status displayed while the Z-Modem abort sequence is being sent. -->
     <string name="zmodem_cancelling">Cancelling transfer…</string>
+
+	<!-- Notification line while hotspot-bound port forwards are active; %s is the hotspot IP address. -->
+	<string name="notification_access_point_text">Hotspot IP: %s</string>
+	<!-- Notification line when port forwards are bound to the WiFi hotspot but the hotspot is off. -->
+	<string name="notification_ap_disabled_text">Port forwards configured for WiFi hotspot, but hotspot is disabled</string>
+
+	<!-- Port forward bind address choice: listen on the loopback interface only. -->
+	<string name="bind_localhost">Localhost only</string>
+	<!-- Port forward bind address choice: listen on every network interface. -->
+	<string name="bind_all_interfaces">All interfaces (0.0.0.0)</string>
+	<!-- Port forward bind address choice: listen only on the device's WiFi hotspot interface. -->
+	<string name="bind_hotspot">WiFi hotspot only</string>
+	<!-- Warning shown when a bind address choice makes the forwarded port reachable from other devices. -->
+	<string name="security_warning_network_exposure">This will expose the forwarded port to other devices on the network</string>
+	<!-- Label for the port forward bind address selector. -->
+	<string name="prompt_bind_address">Bind to:</string>
 </resources>
