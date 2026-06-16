@@ -42,6 +42,7 @@ data class PortForwardEditorUiState(
     val sourcePort: String = "",
     val sourceAddressOption: SourceAddressOption = SourceAddressOption.LOCALHOST,
     val specificAddress: String = "",
+    val bindAddressOption: BindAddressOption = BindAddressOption.LOCALHOST,
     val destination: String = "",
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
@@ -100,6 +101,7 @@ class PortForwardEditorViewModel @Inject constructor(
                                 sourcePort = forward.sourcePort.toString(),
                                 sourceAddressOption = sourceOption,
                                 specificAddress = if (sourceOption == SourceAddressOption.SPECIFIC) forward.sourceAddr else "",
+                                bindAddressOption = BindAddressOption.fromValue(forward.sourceAddr),
                                 destination = if (forward.destAddr != null && forward.destPort > 0) {
                                     "${forward.destAddr}:${forward.destPort}"
                                 } else {
@@ -125,6 +127,7 @@ class PortForwardEditorViewModel @Inject constructor(
     fun updateSourcePort(value: String) = update { it.copy(sourcePort = value) }
     fun updateSourceAddressOption(value: SourceAddressOption) = update { it.copy(sourceAddressOption = value) }
     fun updateSpecificAddress(value: String) = update { it.copy(specificAddress = value) }
+    fun updateBindAddressOption(value: BindAddressOption) = update { it.copy(bindAddressOption = value) }
     fun updateDestination(value: String) = update { it.copy(destination = value) }
 
     private fun update(change: (PortForwardEditorUiState) -> PortForwardEditorUiState) {
@@ -142,7 +145,7 @@ class PortForwardEditorViewModel @Inject constructor(
                     val sourceAddress = if (state.isRemote) {
                         if (state.sourceAddressOption == SourceAddressOption.SPECIFIC) state.specificAddress else state.sourceAddressOption.sshValue
                     } else {
-                        "localhost"
+                        state.bindAddressOption.value
                     }
                     val portForward = PortForward(
                         id = original?.id ?: UUID.randomUUID(),

@@ -19,6 +19,7 @@ package org.connectbot.ui.screens.portforwardlist
 
 import androidx.annotation.StringRes
 import org.connectbot.R
+import org.connectbot.util.NetworkUtils
 
 enum class SourceAddressOption(val sshValue: String, @StringRes val labelRes: Int) {
     LOCALHOST("localhost", R.string.portforward_source_addr_localhost),
@@ -41,6 +42,20 @@ enum class SourceAddressOption(val sshValue: String, @StringRes val labelRes: In
             null -> LOCALHOST
             else -> SPECIFIC
         }
+    }
+}
+
+/** Local listening address for LOCAL and DYNAMIC forwards. */
+enum class BindAddressOption(val value: String, @StringRes val labelRes: Int) {
+    LOCALHOST(NetworkUtils.BIND_LOCALHOST, R.string.bind_localhost),
+    ALL_INTERFACES(NetworkUtils.BIND_ALL_INTERFACES, R.string.bind_all_interfaces),
+    HOTSPOT(NetworkUtils.BIND_HOTSPOT, R.string.bind_hotspot),
+    ;
+
+    val exposesToNetwork: Boolean get() = this != LOCALHOST
+
+    companion object {
+        fun fromValue(value: String?) = entries.firstOrNull { it.value == value } ?: LOCALHOST
     }
 }
 

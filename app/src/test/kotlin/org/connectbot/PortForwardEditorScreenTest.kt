@@ -75,6 +75,7 @@ class PortForwardEditorScreenTest {
                     onSourcePortChange = {},
                     onSourceAddressOptionChange = {},
                     onSpecificAddressChange = {},
+                    onBindAddressOptionChange = {},
                     onDestinationChange = {},
                     onSave = onSave,
                     modifier = modifier,
