@@ -180,7 +180,7 @@ class PuttyRegistryParser {
         fun processCurrentSection() {
             val sectionName = currentSection ?: return
             val rawName = try {
-                URLDecoder.decode(sectionName, "UTF-8")
+                URLDecoder.decode(sectionName, Charsets.UTF_8)
             } catch (_: Exception) {
                 sectionName
             }
@@ -307,7 +307,7 @@ class PuttyRegistryParser {
         // group 1: optional address family (4 or 6), group 2: type letter (L/R/D)
         // group 3: source port, group 4: dest host (L/R only), group 5: dest port (L/R only)
         val typeChar = match.groupValues[2].uppercase()
-        val srcPort = match.groupValues[3].toIntOrNull() ?: return null
+        val srcPort = match.groupValues[3].toIntOrNull()?.takeIf { it in 1..65535 } ?: return null
 
         return when (typeChar) {
             "D" -> PortForward(
@@ -322,7 +322,7 @@ class PuttyRegistryParser {
 
             "L", "R" -> {
                 val destHost = match.groupValues[4].takeIf { it.isNotEmpty() } ?: return null
-                val destPort = match.groupValues[5].toIntOrNull() ?: return null
+                val destPort = match.groupValues[5].toIntOrNull()?.takeIf { it in 1..65535 } ?: return null
                 val pfType = if (typeChar == "L") {
                     HostConstants.PORTFORWARD_LOCAL
                 } else {

@@ -335,4 +335,22 @@ class PuttyRegistryParserTest {
         val pfs = parser.parsePortForwards("")
         assertTrue(pfs.isEmpty())
     }
+
+    // =========================================================================
+    // Test 17: Out-of-range source port rejected
+    // =========================================================================
+    @Test
+    fun `parseSinglePortForward skips out-of-range source port`() {
+        val result = parser.parsePortForwards("L0=host:80")
+        assertTrue(result.isEmpty())
+    }
+
+    // =========================================================================
+    // Test 18: Out-of-range destination port rejected
+    // =========================================================================
+    @Test
+    fun `parseSinglePortForward skips out-of-range dest port`() {
+        val result = parser.parsePortForwards("L8080=host:99999")
+        assertTrue(result.isEmpty())
+    }
 }
