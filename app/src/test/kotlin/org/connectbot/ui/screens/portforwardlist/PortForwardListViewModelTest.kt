@@ -17,6 +17,7 @@
 
 package org.connectbot.ui.screens.portforwardlist
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -98,7 +99,7 @@ class PortForwardListViewModelTest {
     }
 
     private fun createViewModel(): PortForwardListViewModel {
-        val vm = PortForwardListViewModel(savedStateHandle, repository, dispatchers)
+        val vm = PortForwardListViewModel(savedStateHandle, repository, dispatchers, mock<Context>())
         vm.setTerminalManager(terminalManager)
         return vm
     }
