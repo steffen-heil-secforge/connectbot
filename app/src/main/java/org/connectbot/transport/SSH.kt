@@ -1401,8 +1401,14 @@ open class SSH : AbsTransport {
 
         portForward.setIdentifier(forwarder)
         portForward.setEnabled(true)
+        if (isAccessPointBound(portForward)) {
+            manager?.updateAccessPointNotification()
+        }
         return true
     }
+
+    private fun isAccessPointBound(portForward: PortForward): Boolean = portForward.type != HostConstants.PORTFORWARD_REMOTE &&
+        portForward.sourceAddr == NetworkUtils.BIND_HOTSPOT
 
     override suspend fun disablePortForward(portForward: PortForward): Boolean {
         if (!portForwards.contains(portForward)) {
@@ -1423,6 +1429,9 @@ open class SSH : AbsTransport {
 
         portForward.setEnabled(false)
         forwarder.stop()
+        if (isAccessPointBound(portForward)) {
+            manager?.updateAccessPointNotification()
+        }
         return true
     }
 

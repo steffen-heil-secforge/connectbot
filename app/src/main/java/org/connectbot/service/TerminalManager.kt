@@ -65,12 +65,15 @@ import org.connectbot.di.CoroutineDispatchers
 import org.connectbot.sshlib.SshSigning
 import org.connectbot.transport.TransportFactory
 import org.connectbot.util.CryptoProviderState
+import org.connectbot.util.NetworkUtils
 import org.connectbot.util.PreferenceConstants
 import org.connectbot.util.PubkeyUtils
 import timber.log.Timber
 import java.io.IOException
 import java.lang.ref.WeakReference
 import java.security.KeyPair
+import java.util.Timer
+import java.util.TimerTask
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -253,6 +256,10 @@ class TerminalManager :
 
     internal var hardKeyboardHidden = false
 
+    private var apStateTimer: Timer? = null
+    private var apMonitoringActive = false
+    private var accessPointReceiver: AccessPointReceiver? = null
+
     override fun onCreate() {
         super.onCreate()
         Timber.i("Starting service")
@@ -325,6 +332,10 @@ class TerminalManager :
         connectivityMonitor.init()
 
         scope.launch(dispatchers.main) { CryptoProviderState.ensureLoaded(this@TerminalManager, dispatchers) }
+
+        apStateTimer = Timer("apStateTimer", /* isDaemon= */ true)
+        accessPointReceiver = AccessPointReceiver(this)
+        updateAccessPointMonitoring()
     }
 
     private fun updateSavingKeys() {
@@ -335,6 +346,12 @@ class TerminalManager :
         Timber.i("Destroying service")
 
         ProcessLifecycleOwner.get().lifecycle.removeObserver(uiVisibilityObserver)
+
+        apStateTimer?.cancel()
+        apStateTimer = null
+        apMonitoringActive = false
+        accessPointReceiver?.cleanup()
+        accessPointReceiver = null
 
         scope.cancel()
 
@@ -415,6 +432,8 @@ class TerminalManager :
             nicknameBridgeMap[bridge.host.nickname] = wr
             _bridgesFlow.value = _bridges.toList()
         }
+
+        updateAccessPointMonitoring()
 
         synchronized(_disconnected) {
             _disconnected.remove(bridge.host)
@@ -542,6 +561,8 @@ class TerminalManager :
             disconnectListener?.onDisconnected(bridge)
             _bridgesFlow.value = _bridges.toList()
         }
+
+        updateAccessPointMonitoring()
 
         synchronized(_disconnected) {
             _disconnected.add(bridge.host)
@@ -1117,6 +1138,52 @@ class TerminalManager :
         }
         scope.launch {
             _hostStatusChanged.emit(Unit)
+        }
+    }
+
+    /** Called from SSH.kt when an AP-bound forward is enabled or disabled. */
+    fun updateAccessPointNotification() {
+        connectionNotifier.showRunningNotification(this)  // Task 5 will add AP-aware overload
+    }
+
+    /** Called by AccessPointReceiver and the polling timer. */
+    fun checkAccessPointStateChange() {
+        if (NetworkUtils.hasAccessPointStateChanged(this)) {
+            val currentApIP = NetworkUtils.getAccessPointIP(this)
+            if (currentApIP != null) retryFailedAccessPointForwards()
+            updateAccessPointNotification()
+        }
+    }
+
+    private fun updateAccessPointMonitoring() {
+        val shouldMonitor = synchronized(_bridges) { _bridges.isNotEmpty() } && hasActiveAccessPointForwards()
+        if (shouldMonitor && !apMonitoringActive) {
+            apStateTimer?.schedule(object : TimerTask() {
+                override fun run() { checkAccessPointStateChange() }
+            }, 0L, 10_000L)
+            apMonitoringActive = true
+        } else if (!shouldMonitor && apMonitoringActive) {
+            apStateTimer?.cancel()
+            apStateTimer = Timer("apStateTimer", true)
+            apMonitoringActive = false
+        }
+    }
+
+    private fun hasActiveAccessPointForwards(): Boolean =
+        synchronized(_bridges) {
+            _bridges.any { bridge ->
+                bridge.portForwards.any { it.sourceAddr == NetworkUtils.BIND_HOTSPOT }
+            }
+        }
+
+    private fun retryFailedAccessPointForwards() {
+        val bridgesCopy = synchronized(_bridges) { _bridges.toList() }
+        bridgesCopy.forEach { bridge ->
+            bridge.portForwards
+                .filter { it.sourceAddr == NetworkUtils.BIND_HOTSPOT && !it.isEnabled() }
+                .forEach { portForward ->
+                    scope.launch(dispatchers.io) { bridge.enablePortForward(portForward) }
+                }
         }
     }
 
