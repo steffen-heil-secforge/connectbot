@@ -1037,7 +1037,9 @@ class TerminalManager :
 
     /** Called from SSH.kt when an AP-bound forward is enabled or disabled. */
     fun updateAccessPointNotification() {
-        connectionNotifier.showRunningNotification(this)  // Task 5 will add AP-aware overload
+        val apIP = NetworkUtils.getAccessPointIP(this)
+        val hasApForwards = hasActiveAccessPointForwards()
+        connectionNotifier.showRunningNotification(this, apIP, hasApForwards)
     }
 
     /** Called by AccessPointReceiver and the polling timer. */
