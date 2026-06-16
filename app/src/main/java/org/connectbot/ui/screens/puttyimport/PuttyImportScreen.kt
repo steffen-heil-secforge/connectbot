@@ -48,6 +48,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -61,15 +63,17 @@ import org.connectbot.util.NetworkUtils
 @Composable
 fun PuttyImportScreen(
     onNavigateBack: () -> Unit,
-    onImportDone: () -> Unit,
+    onImportComplete: () -> Unit,
+    modifier: Modifier = Modifier,
     viewModel: PuttyImportViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val currentOnImportComplete by rememberUpdatedState(onImportComplete)
 
     // Navigate away when import completes
     LaunchedEffect(uiState.importResult) {
-        if (uiState.importResult != null) {
-            onImportDone()
+        if (uiState.importResult) {
+            currentOnImportComplete()
         }
     }
 
@@ -82,6 +86,7 @@ fun PuttyImportScreen(
     }
 
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.list_menu_import_putty)) },
@@ -89,7 +94,7 @@ fun PuttyImportScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = null,
+                            contentDescription = stringResource(R.string.button_navigate_up),
                         )
                     }
                 },
@@ -126,7 +131,17 @@ fun PuttyImportScreen(
             }
         } else {
             // State 2: File parsed — show session list + options
-            val anySelected = uiState.sessions.any { it.selected }
+            val anySelected = remember(uiState.sessions) { uiState.sessions.any { it.selected } }
+            val localhostLabel = stringResource(R.string.bind_localhost)
+            val allInterfacesLabel = stringResource(R.string.bind_all_interfaces)
+            val hotspotLabel = stringResource(R.string.bind_hotspot)
+            val bindOptions = remember(localhostLabel, allInterfacesLabel, hotspotLabel) {
+                listOf(
+                    NetworkUtils.BIND_LOCALHOST to localhostLabel,
+                    NetworkUtils.BIND_ALL_INTERFACES to allInterfacesLabel,
+                    NetworkUtils.BIND_HOTSPOT to hotspotLabel,
+                )
+            }
 
             LazyColumn(
                 modifier = Modifier
@@ -225,12 +240,6 @@ fun PuttyImportScreen(
                         text = stringResource(R.string.putty_import_bind_address),
                         style = MaterialTheme.typography.titleSmall,
                         modifier = Modifier.padding(bottom = 4.dp),
-                    )
-
-                    val bindOptions = listOf(
-                        NetworkUtils.BIND_LOCALHOST to stringResource(R.string.bind_localhost),
-                        NetworkUtils.BIND_ALL_INTERFACES to stringResource(R.string.bind_all_interfaces),
-                        NetworkUtils.BIND_HOTSPOT to stringResource(R.string.bind_hotspot),
                     )
 
                     Column {
