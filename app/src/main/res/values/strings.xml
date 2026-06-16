@@ -1419,4 +1419,15 @@
 	<string name="auth_prompt_title">Unlock ConnectBot</string>
 	<!-- Subtitle shown in the biometric/device credential authentication prompt -->
 	<string name="auth_prompt_subtitle">Verify your identity to continue</string>
+
+	<!-- WiFi hotspot notification strings -->
+	<string name="notification_access_point_text">Hotspot IP: %s</string>
+	<string name="notification_ap_disabled_text">Port forwards configured for WiFi hotspot, but hotspot is disabled</string>
+
+	<!-- Port forward bind address options -->
+	<string name="bind_localhost">Localhost only</string>
+	<string name="bind_all_interfaces">All interfaces (0.0.0.0)</string>
+	<string name="bind_hotspot">WiFi hotspot only</string>
+	<string name="security_warning_network_exposure">This will expose the forwarded port to other devices on the network</string>
+	<string name="prompt_bind_address">Bind to:</string>
 </resources>
