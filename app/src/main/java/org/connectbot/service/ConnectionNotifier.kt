@@ -113,7 +113,7 @@ class ConnectionNotifier @Inject constructor() {
         return builder.build()
     }
 
-    private fun newRunningNotification(context: Context): Notification {
+    private fun newRunningNotification(context: Context, apIP: String?, hasApForwards: Boolean): Notification {
         val builder = newNotificationBuilder(context, NOTIFICATION_CHANNEL)
         val res = context.resources
 
@@ -135,17 +135,33 @@ class ConnectionNotifier @Inject constructor() {
             pendingIntentFlags,
         )
 
+        val contentText = buildString {
+            append(res.getString(R.string.app_is_running))
+            if (hasApForwards) {
+                append("\n")
+                if (apIP != null) {
+                    append(res.getString(R.string.notification_access_point_text, apIP))
+                } else {
+                    append(res.getString(R.string.notification_ap_disabled_text))
+                }
+            }
+        }
+
         builder.setOngoing(true)
             .setWhen(0)
             .setSilent(true)
             .setContentIntent(pendingIntent)
             .setContentTitle(res.getString(R.string.app_name))
-            .setContentText(res.getString(R.string.app_is_running))
+            .setContentText(contentText)
             .addAction(
                 android.R.drawable.ic_menu_close_clear_cancel,
                 res.getString(R.string.list_host_disconnect),
                 disconnectPendingIntent,
             )
+
+        if (hasApForwards) {
+            builder.setStyle(NotificationCompat.BigTextStyle().bigText(contentText))
+        }
 
         return builder.build()
     }
@@ -155,19 +171,23 @@ class ConnectionNotifier @Inject constructor() {
     }
 
     fun showRunningNotification(context: Service) {
+        showRunningNotification(context, null, false)
+    }
+
+    fun showRunningNotification(service: Service, apIP: String?, hasApForwards: Boolean) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            showRunningNotificationWithType(context)
+            showRunningNotificationWithType(service, apIP, hasApForwards)
             return
         }
 
-        context.startForeground(ONLINE_NOTIFICATION, newRunningNotification(context))
+        service.startForeground(ONLINE_NOTIFICATION, newRunningNotification(service, apIP, hasApForwards))
     }
 
     @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
-    private fun showRunningNotificationWithType(context: Service) {
+    private fun showRunningNotificationWithType(context: Service, apIP: String?, hasApForwards: Boolean) {
         context.startForeground(
             ONLINE_NOTIFICATION,
-            newRunningNotification(context),
+            newRunningNotification(context, apIP, hasApForwards),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING,
         )
     }

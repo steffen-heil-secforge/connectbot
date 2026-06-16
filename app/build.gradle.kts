@@ -299,6 +299,7 @@ kotlin {
 
 tasks.withType<Test>().configureEach {
     jvmArgs("--add-opens", "java.base/java.lang=ALL-UNNAMED")
+    jvmArgs("--add-opens", "java.base/java.net=ALL-UNNAMED")
 }
 
 // Generate filtered export schema from Room schema
