@@ -116,6 +116,7 @@ fun HostListScreen(
     onNavigateToPortForwards: (Host) -> Unit,
     onNavigateToProfiles: () -> Unit,
     onNavigateToHelp: () -> Unit,
+    onImportFromPuTTY: () -> Unit = {},
     modifier: Modifier = Modifier,
     onNavigateToSettingsHighlightConnPersist: () -> Unit = {},
     makingShortcut: Boolean = false,
@@ -269,6 +270,7 @@ fun HostListScreen(
         onDisconnectAll = viewModel::disconnectAll,
         onExportHosts = viewModel::exportHosts,
         onImportHosts = { importLauncher.launch(arrayOf("application/json")) },
+        onImportFromPuTTY = onImportFromPuTTY,
         shouldShowNotificationWarning = shouldShowNotificationWarning,
         onNotificationSnackbarFinish = onNotificationSnackbarFinish,
         modifier = modifier,
@@ -298,6 +300,7 @@ fun HostListScreenContent(
     onNavigateToSettingsHighlightConnPersist: () -> Unit = {},
     onExportHosts: () -> Unit = {},
     onImportHosts: () -> Unit = {},
+    onImportFromPuTTY: () -> Unit = {},
     shouldShowNotificationWarning: () -> Boolean = { false },
     onNotificationSnackbarFinish: () -> Unit = {},
 ) {
@@ -401,6 +404,13 @@ fun HostListScreenContent(
                                 onClick = {
                                     showMenu = false
                                     onImportHosts()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.list_menu_import_putty)) },
+                                onClick = {
+                                    showMenu = false
+                                    onImportFromPuTTY()
                                 },
                             )
                             DropdownMenuItem(
