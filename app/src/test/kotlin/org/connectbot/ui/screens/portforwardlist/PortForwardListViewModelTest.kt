@@ -65,6 +65,7 @@ class PortForwardListViewModelTest {
     private lateinit var repository: HostRepository
     private lateinit var savedStateHandle: SavedStateHandle
     private lateinit var terminalManager: TerminalManager
+    private lateinit var applicationContext: Context
     private lateinit var portForwardsFlow: MutableStateFlow<List<PortForward>>
     private lateinit var bridgesFlow: MutableStateFlow<List<TerminalBridge>>
     private lateinit var viewModel: PortForwardListViewModel
@@ -84,6 +85,7 @@ class PortForwardListViewModelTest {
         repository = mock()
         savedStateHandle = mock()
         terminalManager = mock()
+        applicationContext = mock()
         portForwardsFlow = MutableStateFlow(emptyList())
         bridgesFlow = MutableStateFlow(emptyList())
 
@@ -99,7 +101,7 @@ class PortForwardListViewModelTest {
     }
 
     private fun createViewModel(): PortForwardListViewModel {
-        val vm = PortForwardListViewModel(savedStateHandle, repository, dispatchers, mock<Context>())
+        val vm = PortForwardListViewModel(savedStateHandle, repository, dispatchers, applicationContext)
         vm.setTerminalManager(terminalManager)
         return vm
     }
