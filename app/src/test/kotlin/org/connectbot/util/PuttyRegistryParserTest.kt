@@ -38,7 +38,7 @@ class PuttyRegistryParserTest {
         sessionName: String = "MyServer",
         hostname: String = "example.com",
         username: String = "admin",
-        port: String = """dword:00000016""",   // 22 decimal
+        port: String = """dword:00000016""", // 22 decimal
         protocol: String = "ssh",
         compression: String = """dword:00000000""",
         extras: String = "",
@@ -54,8 +54,7 @@ class PuttyRegistryParserTest {
         $extras
     """.trimIndent()
 
-    private fun stream(text: String): ByteArrayInputStream =
-        ByteArrayInputStream(text.toByteArray(Charsets.UTF_8))
+    private fun stream(text: String): ByteArrayInputStream = ByteArrayInputStream(text.toByteArray(Charsets.UTF_8))
 
     // =========================================================================
     // Test 1: Basic SSH session parsed correctly (host, port, user)
@@ -242,8 +241,8 @@ class PuttyRegistryParserTest {
     fun duplicateNfcNames_deduplicated() {
         // Both names normalize to the same NFC form — second one is a duplicate
         // U+00E9 (é precomposed) vs U+0065 U+0301 (e + combining accent)
-        val name1 = "café"          // precomposed é
-        val name2 = "café"         // decomposed é (NFC → same as name1)
+        val name1 = "café" // precomposed é
+        val name2 = "café" // decomposed é (NFC → same as name1)
 
         val reg = """
             Windows Registry Editor Version 5.00
@@ -334,5 +333,23 @@ class PuttyRegistryParserTest {
     fun parsePortForwards_emptySpec_returnsEmptyList() {
         val pfs = parser.parsePortForwards("")
         assertTrue(pfs.isEmpty())
+    }
+
+    // =========================================================================
+    // Test 17: Out-of-range source port rejected
+    // =========================================================================
+    @Test
+    fun `parseSinglePortForward skips out-of-range source port`() {
+        val result = parser.parsePortForwards("L0=host:80")
+        assertTrue(result.isEmpty())
+    }
+
+    // =========================================================================
+    // Test 18: Out-of-range destination port rejected
+    // =========================================================================
+    @Test
+    fun `parseSinglePortForward skips out-of-range dest port`() {
+        val result = parser.parsePortForwards("L8080=host:99999")
+        assertTrue(result.isEmpty())
     }
 }

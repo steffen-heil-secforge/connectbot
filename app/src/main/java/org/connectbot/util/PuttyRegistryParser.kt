@@ -41,14 +41,14 @@ class PuttyRegistryParser {
     companion object {
         private const val MAX_SESSIONS = 100
         private val SECTION_PATTERN = Regex(
-            """^\[HKEY_CURRENT_USER\\Software\\SimonTatham\\PuTTY\\Sessions\\([^\]]+)\]$"""
+            """^\[HKEY_CURRENT_USER\\Software\\SimonTatham\\PuTTY\\Sessions\\([^\]]+)\]$""",
         )
         private val STRING_VALUE_PATTERN = Regex("""^"([^"]+)"="(.*)"$""")
         private val DWORD_VALUE_PATTERN = Regex("""^"([^"]+)"=dword:([0-9A-Fa-f]+)$""")
 
         // Port forward entry: optional address-family digit, then L/R/D, then the rest
         private val PF_PATTERN = Regex(
-            """^([46]?)([LRD])(\d+)(?:=([^:]+):(\d+))?$"""
+            """^([46]?)([LRD])(\d+)(?:=([^:]+):(\d+))?$""",
         )
 
         private val UTF8_BOM = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte())
@@ -138,20 +138,18 @@ class PuttyRegistryParser {
     // -------------------------------------------------------------------------
 
     /** Detect BOM and decode bytes to a String. Defaults to UTF-8. */
-    private fun decodeContent(bytes: ByteArray): String {
-        return when {
-            bytes.startsWith(UTF8_BOM) ->
-                String(bytes, UTF8_BOM.size, bytes.size - UTF8_BOM.size, Charsets.UTF_8)
+    private fun decodeContent(bytes: ByteArray): String = when {
+        bytes.startsWith(UTF8_BOM) ->
+            String(bytes, UTF8_BOM.size, bytes.size - UTF8_BOM.size, Charsets.UTF_8)
 
-            bytes.startsWith(UTF16_LE_BOM) ->
-                String(bytes, UTF16_LE_BOM.size, bytes.size - UTF16_LE_BOM.size, Charsets.UTF_16LE)
+        bytes.startsWith(UTF16_LE_BOM) ->
+            String(bytes, UTF16_LE_BOM.size, bytes.size - UTF16_LE_BOM.size, Charsets.UTF_16LE)
 
-            bytes.startsWith(UTF16_BE_BOM) ->
-                String(bytes, UTF16_BE_BOM.size, bytes.size - UTF16_BE_BOM.size, Charsets.UTF_16BE)
+        bytes.startsWith(UTF16_BE_BOM) ->
+            String(bytes, UTF16_BE_BOM.size, bytes.size - UTF16_BE_BOM.size, Charsets.UTF_16BE)
 
-            else ->
-                String(bytes, Charsets.UTF_8)
-        }
+        else ->
+            String(bytes, Charsets.UTF_8)
     }
 
     private fun ByteArray.startsWith(prefix: ByteArray): Boolean {
@@ -181,7 +179,7 @@ class PuttyRegistryParser {
         fun processCurrentSection() {
             val sectionName = currentSection ?: return
             val rawName = try {
-                URLDecoder.decode(sectionName, "UTF-8")
+                URLDecoder.decode(sectionName, Charsets.UTF_8)
             } catch (_: Exception) {
                 sectionName
             }
@@ -308,7 +306,7 @@ class PuttyRegistryParser {
         // group 1: optional address family (4 or 6), group 2: type letter (L/R/D)
         // group 3: source port, group 4: dest host (L/R only), group 5: dest port (L/R only)
         val typeChar = match.groupValues[2].uppercase()
-        val srcPort = match.groupValues[3].toIntOrNull() ?: return null
+        val srcPort = match.groupValues[3].toIntOrNull()?.takeIf { it in 1..65535 } ?: return null
 
         return when (typeChar) {
             "D" -> PortForward(
@@ -323,7 +321,7 @@ class PuttyRegistryParser {
 
             "L", "R" -> {
                 val destHost = match.groupValues[4].takeIf { it.isNotEmpty() } ?: return null
-                val destPort = match.groupValues[5].toIntOrNull() ?: return null
+                val destPort = match.groupValues[5].toIntOrNull()?.takeIf { it in 1..65535 } ?: return null
                 val pfType = if (typeChar == "L") {
                     HostConstants.PORTFORWARD_LOCAL
                 } else {
@@ -331,7 +329,7 @@ class PuttyRegistryParser {
                 }
                 PortForward(
                     hostId = EntityIds.NONE,
-                    nickname = "$typeChar${srcPort}=${destHost}:${destPort}",
+                    nickname = "$typeChar$srcPort=$destHost:$destPort",
                     type = pfType,
                     sourceAddr = "localhost",
                     sourcePort = srcPort,
