@@ -29,7 +29,6 @@ object NetworkUtils {
     private val HOTSPOT_INTERFACE_PREFIXES = listOf("ap", "wlan1", "p2p", "hotspot", "softap", "wifi_ap")
     private val CELLULAR_INTERFACE_PREFIXES = listOf("rmnet", "ccmni", "pdp", "ppp", "cellular", "mobile", "radio", "baseband")
 
-    @Volatile
     private var lastKnownApIP: String? = null
 
     /** Pure logic: resolve symbolic bind address to actual IP string. Returns null if hotspot unavailable. */
@@ -57,7 +56,12 @@ object NetworkUtils {
     }
 
     fun isHotspotInterfaceName(name: String): Boolean =
-        HOTSPOT_INTERFACE_PREFIXES.any { name.startsWith(it) }
+        HOTSPOT_INTERFACE_PREFIXES.any { prefix ->
+            when (prefix) {
+                "wlan1" -> name == "wlan1" || (name.startsWith("wlan1") && name.length > 5 && !name[5].isDigit())
+                else -> name.startsWith(prefix)
+            }
+        }
 
     private fun isCellularInterface(name: String): Boolean =
         CELLULAR_INTERFACE_PREFIXES.any { name.startsWith(it) }
@@ -75,15 +79,14 @@ object NetworkUtils {
     }
 
     /** Detects whether the AP state has changed since the last check. Thread-safe. */
-    fun hasAccessPointStateChanged(context: Context): Boolean {
-        val current = getAccessPointIP(context)
-        return synchronized(this) {
+    fun hasAccessPointStateChanged(context: Context): Boolean =
+        synchronized(this) {
+            val current = getAccessPointIP(context)
             if (current != lastKnownApIP) {
                 lastKnownApIP = current
                 true
             } else false
         }
-    }
 
     /** Display string for use in UI and notifications. */
     fun getBindAddressDisplayName(bindAddress: String, apIP: String?): String = when (bindAddress) {

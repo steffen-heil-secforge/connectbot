@@ -17,11 +17,13 @@
 
 package org.connectbot.util
 
+import android.content.Context
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.mockito.kotlin.mock
 import java.net.InetAddress
 import java.net.NetworkInterface
 
@@ -234,5 +236,55 @@ class NetworkUtilsTest {
         val result = NetworkUtils.getHotspotInterfaceIP(listOf(nonHotspot, hotspot1, hotspot2))
         // First matching hotspot interface wins
         assertEquals("192.168.43.1", result)
+    }
+
+    // --- isHotspotInterfaceName: wlan1 prefix ambiguity ---
+
+    @Test
+    fun isHotspotInterfaceName_rejectsWlan10() {
+        assertFalse(NetworkUtils.isHotspotInterfaceName("wlan10"))
+    }
+
+    @Test
+    fun isHotspotInterfaceName_rejectsWlan11() {
+        assertFalse(NetworkUtils.isHotspotInterfaceName("wlan11"))
+    }
+
+    @Test
+    fun isHotspotInterfaceName_acceptsWlan1Exactly() {
+        assertTrue(NetworkUtils.isHotspotInterfaceName("wlan1"))
+    }
+
+    // --- hasAccessPointStateChanged ---
+
+    @Test
+    fun hasAccessPointStateChanged_returnsTrueWhenApStateChanges() {
+        // Use reflection to set lastKnownApIP to a known value (simulating "AP was on")
+        val field = NetworkUtils::class.java.getDeclaredField("lastKnownApIP")
+        field.isAccessible = true
+        field.set(NetworkUtils, "192.168.43.1")
+
+        // In test env, getAccessPointIP returns null (no real hotspot interfaces).
+        // State changes from "192.168.43.1" to null → should return true.
+        val mockContext = mock<Context>()
+        val result = NetworkUtils.hasAccessPointStateChanged(mockContext)
+        assertTrue(result)
+    }
+
+    @Test
+    fun hasAccessPointStateChanged_returnsFalseWhenApStateUnchanged() {
+        // Reset lastKnownApIP to null (matches what getAccessPointIP returns in test env)
+        val field = NetworkUtils::class.java.getDeclaredField("lastKnownApIP")
+        field.isAccessible = true
+        field.set(NetworkUtils, null)
+
+        // First call: null → null, no change → false
+        val mockContext = mock<Context>()
+        val result1 = NetworkUtils.hasAccessPointStateChanged(mockContext)
+        assertFalse(result1)
+
+        // Second call: still null → null → false
+        val result2 = NetworkUtils.hasAccessPointStateChanged(mockContext)
+        assertFalse(result2)
     }
 }
