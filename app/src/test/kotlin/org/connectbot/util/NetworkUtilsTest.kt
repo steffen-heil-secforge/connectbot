@@ -22,6 +22,22 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.net.InetAddress
+import java.net.NetworkInterface
+
+/**
+ * Constructs a [NetworkInterface] with the given [name] and [addresses] using the
+ * package-private JDK constructor (available since Java 6, stable through Java 21).
+ * This avoids the need to mock a final JDK class.
+ */
+private fun fakeNetworkInterface(name: String, vararg addresses: InetAddress): NetworkInterface {
+    val ctor = NetworkInterface::class.java.getDeclaredConstructor(
+        String::class.java, Int::class.javaPrimitiveType, Array<InetAddress>::class.java
+    )
+    ctor.isAccessible = true
+    @Suppress("UNCHECKED_CAST")
+    return ctor.newInstance(name, 0, addresses) as NetworkInterface
+}
 
 class NetworkUtilsTest {
 
@@ -157,5 +173,66 @@ class NetworkUtilsTest {
     fun getBindAddressDisplayName_hotspot_withNullApIP_showsUnavailable() {
         val result = NetworkUtils.getBindAddressDisplayName(NetworkUtils.BIND_HOTSPOT, apIP = null)
         assertEquals("WiFi hotspot (unavailable)", result)
+    }
+
+    // --- getHotspotInterfaceIP(List<NetworkInterface>) ---
+
+    @Test
+    fun getHotspotInterfaceIP_hotspotInterface_returnsPrivateIP() {
+        // "ap0" matches the "ap" prefix; 192.168.43.1 is private IPv4
+        val addr = InetAddress.getByAddress(byteArrayOf(192.toByte(), 168.toByte(), 43, 1))
+        val iface = fakeNetworkInterface("ap0", addr)
+        val result = NetworkUtils.getHotspotInterfaceIP(listOf(iface))
+        assertEquals("192.168.43.1", result)
+    }
+
+    @Test
+    fun getHotspotInterfaceIP_emptyList_returnsNull() {
+        val result = NetworkUtils.getHotspotInterfaceIP(emptyList())
+        assertNull(result)
+    }
+
+    @Test
+    fun getHotspotInterfaceIP_cellularInterface_returnsNull() {
+        // "rmnet0" is a cellular interface — must be rejected even with a private IP
+        val addr = InetAddress.getByAddress(byteArrayOf(10, 0, 0, 1))
+        val iface = fakeNetworkInterface("rmnet0", addr)
+        val result = NetworkUtils.getHotspotInterfaceIP(listOf(iface))
+        assertNull(result)
+    }
+
+    @Test
+    fun getHotspotInterfaceIP_loopbackAddress_returnsNull() {
+        // 127.0.0.1 is a loopback — must be rejected even on a hotspot-named interface
+        val addr = InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1))
+        val iface = fakeNetworkInterface("ap0", addr)
+        val result = NetworkUtils.getHotspotInterfaceIP(listOf(iface))
+        assertNull(result)
+    }
+
+    @Test
+    fun getHotspotInterfaceIP_ipv6Address_returnsNull() {
+        // An IPv6 address contains ':' and must be rejected
+        val addr = InetAddress.getByName("fe80::1")
+        val iface = fakeNetworkInterface("ap0", addr)
+        val result = NetworkUtils.getHotspotInterfaceIP(listOf(iface))
+        assertNull(result)
+    }
+
+    @Test
+    fun getHotspotInterfaceIP_multipleInterfaces_returnsFirstMatch() {
+        // First interface is non-hotspot, second is hotspot; should return second's IP
+        val nonHotspotAddr = InetAddress.getByAddress(byteArrayOf(10, 0, 0, 2))
+        val nonHotspot = fakeNetworkInterface("wlan0", nonHotspotAddr)
+
+        val hotspotAddr1 = InetAddress.getByAddress(byteArrayOf(192.toByte(), 168.toByte(), 43, 1))
+        val hotspot1 = fakeNetworkInterface("ap0", hotspotAddr1)
+
+        val hotspotAddr2 = InetAddress.getByAddress(byteArrayOf(192.toByte(), 168.toByte(), 43, 2))
+        val hotspot2 = fakeNetworkInterface("softap0", hotspotAddr2)
+
+        val result = NetworkUtils.getHotspotInterfaceIP(listOf(nonHotspot, hotspot1, hotspot2))
+        // First matching hotspot interface wins
+        assertEquals("192.168.43.1", result)
     }
 }
