@@ -1155,6 +1155,7 @@ class TerminalManager :
         }
     }
 
+    @Synchronized
     private fun updateAccessPointMonitoring() {
         val shouldMonitor = synchronized(_bridges) { _bridges.isNotEmpty() } && hasActiveAccessPointForwards()
         if (shouldMonitor && !apMonitoringActive) {
