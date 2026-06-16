@@ -60,12 +60,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import org.connectbot.R
 import org.connectbot.data.entity.PortForward
 import org.connectbot.ui.PreviewScreen
 import org.connectbot.ui.theme.ConnectBotTheme
+import org.connectbot.util.NetworkUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -190,6 +192,7 @@ fun PortForwardListScreenContent(
                                 onEnable = { onEnablePortForward(portForward) },
                                 onDisable = { onDisablePortForward(portForward) },
                                 hasLiveConnection = uiState.hasLiveConnection,
+                                hotspotIp = uiState.hotspotIp,
                             )
                         }
                     }
@@ -349,15 +352,25 @@ private fun PortForwardListItem(
     onEnable: () -> Unit,
     onDisable: () -> Unit,
     hasLiveConnection: Boolean,
+    hotspotIp: String? = null,
     modifier: Modifier = Modifier,
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val isDysfunctional = portForward.sourceAddr == NetworkUtils.BIND_HOTSPOT
+        && !portForward.isEnabled()
+        && hotspotIp == null
     Column(modifier = modifier) {
         ListItem(
             headlineContent = {
                 Text(
                     text = portForward.nickname,
                     fontWeight = FontWeight.Bold,
+                    style = if (isDysfunctional)
+                        MaterialTheme.typography.bodyMedium.copy(
+                            textDecoration = TextDecoration.LineThrough,
+                        )
+                    else
+                        MaterialTheme.typography.bodyMedium,
                 )
             },
             supportingContent = {
