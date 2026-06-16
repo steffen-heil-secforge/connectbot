@@ -104,24 +104,23 @@ fun PuttyImportScreen(
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center,
             ) {
-                if (uiState.isLoading) {
-                    CircularProgressIndicator()
-                } else {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        uiState.error?.let { error ->
-                            Text(
-                                text = error,
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                            )
-                        }
-                        Button(onClick = { filePicker.launch("*/*") }) {
-                            Text(stringResource(R.string.putty_import_choose_file))
-                        }
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    if (uiState.isLoading) {
+                        CircularProgressIndicator()
+                    }
+                    uiState.error?.let { error ->
+                        Text(
+                            text = error,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                        )
+                    }
+                    Button(onClick = { filePicker.launch("*/*") }, enabled = !uiState.isLoading) {
+                        Text(stringResource(R.string.putty_import_choose_file))
                     }
                 }
             }
