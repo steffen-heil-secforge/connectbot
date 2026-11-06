@@ -51,6 +51,7 @@ import org.connectbot.ui.screens.profiles.ProfileEditorScreen
 import org.connectbot.ui.screens.profiles.ProfileListScreen
 import org.connectbot.ui.screens.pubkeyeditor.PubkeyEditorScreen
 import org.connectbot.ui.screens.pubkeylist.PubkeyListScreen
+import org.connectbot.ui.screens.puttyimport.PuttyImportScreen
 import org.connectbot.ui.screens.settings.SettingsScreen
 import org.connectbot.util.IconStyle
 import timber.log.Timber
@@ -107,6 +108,9 @@ fun ConnectBotNavHost(
                     },
                     onNavigateToHelp = {
                         navController.navigateSafely(NavDestinations.HELP)
+                    },
+                    onImportFromPuTTY = {
+                        navController.navigateSafely(NavDestinations.PUTTY_IMPORT)
                     },
                 )
             }
@@ -330,6 +334,13 @@ fun ConnectBotNavHost(
             composable(NavDestinations.HINTS) {
                 HintsScreen(
                     onNavigateBack = { navController.safePopBackStack() },
+                )
+            }
+
+            composable(NavDestinations.PUTTY_IMPORT) {
+                PuttyImportScreen(
+                    onNavigateBack = { navController.safePopBackStack() },
+                    onImportComplete = { navController.safePopBackStack() },
                 )
             }
         }
