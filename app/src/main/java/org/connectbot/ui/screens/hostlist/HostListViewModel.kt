@@ -241,6 +241,19 @@ class HostListViewModel @Inject constructor(
         }
     }
 
+    fun deleteAllHosts() {
+        viewModelScope.launch {
+            try {
+                terminalManager?.disconnectAll(excludeLocal = false)
+                repository.getHosts().forEach { repository.deleteHost(it) }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(error = e.message ?: "Failed to delete hosts")
+                }
+            }
+        }
+    }
+
     fun duplicateHost(host: Host) {
         viewModelScope.launch {
             try {

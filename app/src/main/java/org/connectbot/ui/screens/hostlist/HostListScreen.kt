@@ -81,6 +81,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -274,6 +275,7 @@ fun HostListScreen(
         onExportHosts = viewModel::exportHosts,
         // Some document providers label JSON exports as text/plain or application/octet-stream.
         onImportHosts = { importLauncher.launch(arrayOf("*/*")) },
+        onDeleteAllHosts = viewModel::deleteAllHosts,
         modifier = modifier,
     )
 }
@@ -300,9 +302,11 @@ fun HostListScreenContent(
     onSelectShortcut: (Host) -> Unit = {},
     onExportHosts: () -> Unit = {},
     onImportHosts: () -> Unit = {},
+    onDeleteAllHosts: () -> Unit = {},
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showDisconnectAllDialog by remember { mutableStateOf(false) }
+    var showDeleteAllHostsDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Show snackbar when there's an error
@@ -379,6 +383,14 @@ fun HostListScreenContent(
                                 onClick = {
                                     showMenu = false
                                     onImportHosts()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.list_menu_delete_all_hosts)) },
+                                enabled = uiState.hosts.isNotEmpty(),
+                                onClick = {
+                                    showMenu = false
+                                    showDeleteAllHostsDialog = true
                                 },
                             )
                             DropdownMenuItem(
@@ -489,6 +501,30 @@ fun HostListScreenContent(
             onConfirm = {
                 showDisconnectAllDialog = false
                 onDisconnectAll()
+            },
+        )
+    }
+
+    if (showDeleteAllHostsDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteAllHostsDialog = false },
+            text = {
+                Text(pluralStringResource(R.plurals.delete_all_hosts_message, uiState.hosts.size, uiState.hosts.size))
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteAllHostsDialog = false
+                        onDeleteAllHosts()
+                    },
+                ) {
+                    Text(stringResource(R.string.delete_all_hosts_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteAllHostsDialog = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
             },
         )
     }

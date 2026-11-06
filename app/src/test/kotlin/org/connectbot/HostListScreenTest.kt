@@ -37,6 +37,7 @@ import org.connectbot.ui.screens.hostlist.HostListTestTags
 import org.connectbot.ui.screens.hostlist.HostListUiState
 import org.connectbot.ui.theme.ConnectBotTheme
 import org.connectbot.util.HostConstants
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -420,6 +421,47 @@ class HostListScreenTest {
             .performClick()
     }
 
+    @Test
+    fun hostListScreenContent_deleteAllHostsDisabledWhenNoHosts() {
+        setHostListContent(uiState = HostListUiState(hosts = emptyList(), isLoading = false))
+
+        composeTestRule
+            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.button_more_options))
+            .performClick()
+
+        composeTestRule
+            .onNodeWithText(composeTestRule.activity.getString(R.string.list_menu_delete_all_hosts))
+            .assertIsNotEnabled()
+    }
+
+    @Test
+    fun hostListScreenContent_deleteAllHostsAsksForConfirmation() {
+        val hosts = listOf(testHost(UUID(0, 1), "first"), testHost(UUID(0, 2), "second"))
+        var deleteAllCalls = 0
+        setHostListContent(
+            uiState = HostListUiState(hosts = hosts, isLoading = false),
+            onDeleteAllHosts = { deleteAllCalls++ },
+        )
+
+        composeTestRule
+            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.button_more_options))
+            .performClick()
+        composeTestRule
+            .onNodeWithText(composeTestRule.activity.getString(R.string.list_menu_delete_all_hosts))
+            .performClick()
+
+        composeTestRule
+            .onNodeWithText(composeTestRule.activity.resources.getQuantityString(R.plurals.delete_all_hosts_message, 2, 2))
+            .assertIsDisplayed()
+        assertEquals(0, deleteAllCalls)
+
+        composeTestRule
+            .onNodeWithText(composeTestRule.activity.getString(R.string.delete_all_hosts_confirm))
+            .performClick()
+
+        assertEquals(1, deleteAllCalls)
+    }
+
     private fun openHostMenu(host: Host) {
         composeTestRule
             .onNodeWithTag(HostListTestTags.itemMenuButton(host.id))
@@ -445,6 +487,7 @@ class HostListScreenTest {
         onDisconnectAll: () -> Unit = {},
         onExportHosts: () -> Unit = {},
         onImportHosts: () -> Unit = {},
+        onDeleteAllHosts: () -> Unit = {},
     ) {
         composeTestRule.setContent {
             ConnectBotTheme {
@@ -467,6 +510,7 @@ class HostListScreenTest {
                     onDisconnectAll = onDisconnectAll,
                     onExportHosts = onExportHosts,
                     onImportHosts = onImportHosts,
+                    onDeleteAllHosts = onDeleteAllHosts,
                 )
             }
         }

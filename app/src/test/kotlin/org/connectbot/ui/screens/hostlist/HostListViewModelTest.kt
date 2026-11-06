@@ -233,4 +233,23 @@ class HostListViewModelTest {
         inOrder.verify(terminalManager).disconnectHost(host.id)
         inOrder.verify(repository).deleteHost(host)
     }
+
+    @Test
+    fun deleteAllHosts_disconnectsAllSessionsBeforeDeletingEveryHost() = runTest {
+        val first = Host(id = UUID(0, 1), nickname = "first", hostname = "one.example.com")
+        val second = Host(id = UUID(0, 2), nickname = "second", hostname = "two.example.com")
+        whenever(repository.getHosts()).thenReturn(listOf(first, second))
+        val viewModel = createViewModel()
+        val terminalManager = createTerminalManager()
+        viewModel.setTerminalManager(terminalManager)
+        advanceUntilIdle()
+
+        viewModel.deleteAllHosts()
+        advanceUntilIdle()
+
+        val inOrder = inOrder(terminalManager, repository)
+        inOrder.verify(terminalManager).disconnectAll(excludeLocal = false)
+        inOrder.verify(repository).deleteHost(first)
+        inOrder.verify(repository).deleteHost(second)
+    }
 }

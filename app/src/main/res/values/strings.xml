@@ -1515,6 +1515,15 @@
 	<string name="list_menu_export_hosts">Export Hosts</string>
 	<!-- Menu item to import hosts from a JSON file -->
 	<string name="list_menu_import_hosts">Import Hosts</string>
+	<!-- Host list overflow menu item that deletes every saved host after confirmation. -->
+	<string name="list_menu_delete_all_hosts">Delete all hosts</string>
+	<!-- Confirmation dialog shown before deleting every saved host; %1$d is the number of hosts. -->
+	<plurals name="delete_all_hosts_message">
+		<item quantity="one">Delete %1$d host? Its connection settings, port forwards and saved host keys will be removed. This cannot be undone.</item>
+		<item quantity="other">Delete all %1$d hosts? Their connection settings, port forwards and saved host keys will be removed. This cannot be undone.</item>
+	</plurals>
+	<!-- Confirm button of the delete-all-hosts dialog. -->
+	<string name="delete_all_hosts_confirm">Delete all</string>
 
 	<!-- Host export/import messages -->
 	<!-- Success message shown after exporting hosts to a file. Parameters: %1$d = host count, %2$d = profile count -->
