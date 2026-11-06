@@ -75,6 +75,7 @@ import org.connectbot.sshlib.transport.IpVersion
 import org.connectbot.sshlib.transport.TransportFactory
 import org.connectbot.util.CryptoProviderState
 import org.connectbot.util.HostConstants
+import org.connectbot.util.NetworkUtils
 import org.connectbot.util.PubkeyUtils
 import org.connectbot.util.SshKeyType
 import org.connectbot.util.UrlUtils
@@ -82,7 +83,10 @@ import org.connectbot.util.titleRes
 import timber.log.Timber
 import java.io.IOException
 import java.math.BigInteger
+import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.net.NoRouteToHostException
+import java.net.UnknownHostException
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.security.KeyPair
@@ -1330,6 +1334,17 @@ open class SSH : AbsTransport {
         return portForwards.remove(portForward)
     }
 
+    private fun resolveLocalBindAddress(bindAddress: String): InetAddress? {
+        val apIP = manager?.let { NetworkUtils.getAccessPointIP(it) }
+        val resolved = NetworkUtils.resolveBindAddress(bindAddress, apIP) ?: return null
+        return try {
+            InetAddress.getByName(resolved)
+        } catch (e: UnknownHostException) {
+            Timber.e(e, "Failed to resolve bind address: $bindAddress")
+            null
+        }
+    }
+
     override suspend fun enablePortForward(portForward: PortForward): Boolean {
         if (!portForwards.contains(portForward)) {
             Timber.e("Attempt to enable port forward not in list")
@@ -1342,8 +1357,17 @@ open class SSH : AbsTransport {
 
         val forwarder: PortForwarder? = try {
             when (portForward.type) {
-                HostConstants.PORTFORWARD_LOCAL ->
-                    client?.localPortForward(portForward.sourcePort, portForward.destAddr ?: "", portForward.destPort)
+                HostConstants.PORTFORWARD_LOCAL -> {
+                    val bindAddr = resolveLocalBindAddress(portForward.sourceAddr) ?: run {
+                        Timber.w("Hotspot unavailable, cannot bind local forward: ${portForward.nickname}")
+                        return false
+                    }
+                    client?.localPortForward(
+                        InetSocketAddress(bindAddr, portForward.sourcePort),
+                        portForward.destAddr ?: "",
+                        portForward.destPort,
+                    )
+                }
 
                 HostConstants.PORTFORWARD_REMOTE ->
                     client?.remotePortForward(
@@ -1353,8 +1377,13 @@ open class SSH : AbsTransport {
                         portForward.destPort,
                     )
 
-                HostConstants.PORTFORWARD_DYNAMIC5 ->
-                    client?.dynamicPortForward(portForward.sourcePort)
+                HostConstants.PORTFORWARD_DYNAMIC5 -> {
+                    val bindAddr = resolveLocalBindAddress(portForward.sourceAddr) ?: run {
+                        Timber.w("Hotspot unavailable, cannot bind dynamic forward: ${portForward.nickname}")
+                        return false
+                    }
+                    client?.dynamicPortForward(InetSocketAddress(bindAddr, portForward.sourcePort))
+                }
 
                 else -> {
                     Timber.e("attempt to forward unknown type %s", portForward.type)
@@ -1372,8 +1401,14 @@ open class SSH : AbsTransport {
 
         portForward.setIdentifier(forwarder)
         portForward.setEnabled(true)
+        if (isAccessPointBound(portForward)) {
+            manager?.updateAccessPointNotification()
+        }
         return true
     }
+
+    private fun isAccessPointBound(portForward: PortForward): Boolean = portForward.type != HostConstants.PORTFORWARD_REMOTE &&
+        portForward.sourceAddr == NetworkUtils.BIND_HOTSPOT
 
     override suspend fun disablePortForward(portForward: PortForward): Boolean {
         if (!portForwards.contains(portForward)) {
@@ -1394,6 +1429,9 @@ open class SSH : AbsTransport {
 
         portForward.setEnabled(false)
         forwarder.stop()
+        if (isAccessPointBound(portForward)) {
+            manager?.updateAccessPointNotification()
+        }
         return true
     }
 

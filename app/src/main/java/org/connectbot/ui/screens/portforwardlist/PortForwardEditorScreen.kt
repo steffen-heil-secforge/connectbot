@@ -17,7 +17,9 @@
 
 package org.connectbot.ui.screens.portforwardlist
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -33,7 +35,9 @@ import androidx.compose.material3.ExposedDropdownMenu
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -76,6 +80,7 @@ fun PortForwardEditorScreen(
         onSourcePortChange = viewModel::updateSourcePort,
         onSourceAddressOptionChange = viewModel::updateSourceAddressOption,
         onSpecificAddressChange = viewModel::updateSpecificAddress,
+        onBindAddressOptionChange = viewModel::updateBindAddressOption,
         onDestinationChange = viewModel::updateDestination,
         onSave = { viewModel.save(onNavigateBack) },
         modifier = modifier,
@@ -92,6 +97,7 @@ fun PortForwardEditorScreenContent(
     onSourcePortChange: (String) -> Unit,
     onSourceAddressOptionChange: (SourceAddressOption) -> Unit,
     onSpecificAddressChange: (String) -> Unit,
+    onBindAddressOptionChange: (BindAddressOption) -> Unit,
     onDestinationChange: (String) -> Unit,
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
@@ -207,6 +213,40 @@ fun PortForwardEditorScreenContent(
                             modifier = Modifier.fillMaxWidth().testTag(PortForwardEditorTestTags.SPECIFIC_SOURCE_ADDRESS_FIELD),
                             singleLine = true,
                             isError = uiState.specificAddress.isBlank(),
+                        )
+                    }
+                } else {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.prompt_bind_address),
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                    Column {
+                        BindAddressOption.entries.forEach { option ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onBindAddressOptionChange(option) }
+                                    .padding(vertical = 2.dp),
+                            ) {
+                                RadioButton(
+                                    selected = uiState.bindAddressOption == option,
+                                    onClick = { onBindAddressOptionChange(option) },
+                                )
+                                Text(
+                                    text = stringResource(option.labelRes),
+                                    modifier = Modifier.padding(start = 4.dp),
+                                )
+                            }
+                        }
+                    }
+                    if (uiState.bindAddressOption.exposesToNetwork) {
+                        Text(
+                            text = stringResource(R.string.security_warning_network_exposure),
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 4.dp, start = 4.dp),
                         )
                     }
                 }
